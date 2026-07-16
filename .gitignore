@@ -1,0 +1,21 @@
+.planning/
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+.cache/
+.npm-cache/
+.DS_Store
+backend/.pytest_cache/
+backend/**/__pycache__/
+frontend/*.tsbuildinfo
+
+# Virtualenvs, caches, and compiled artifacts (any level)
+.venv/
+**/.venv/
+.pytest_cache/
+**/.pytest_cache/
+__pycache__/
+**/__pycache__/
+*.pyc

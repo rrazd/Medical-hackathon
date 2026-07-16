@@ -1,0 +1,11 @@
+case_id,biologic,outcome_label,outcome_score,age,sex,race_ethnicity,fitzpatrick_skin_type,body_area,baseline_severity,before_image_path,after_image_path,erythema_score,lesion_coverage_pct,texture_score,dryness_scaling_score,inflammation_score,affected_body_area_pct,followup_weeks
+DM-001,Dupixent,responder,1.0,29,female,white,I,arm,moderate,images/DM-001/before.jpg,images/DM-001/after.jpg,0.72,18.5,0.58,0.61,0.70,8.5,16
+DM-002,Dupixent,partial_responder,0.5,41,male,asian,II,flexural,moderate,images/DM-002/before.jpg,images/DM-002/after.jpg,0.55,22.0,0.49,0.52,0.57,11.0,16
+DM-003,Dupixent,non_responder,0.0,36,nonbinary,hispanic_latino,III,hand,severe,images/DM-003/before.jpg,images/DM-003/after.jpg,0.82,34.5,0.76,0.68,0.80,17.5,16
+DM-004,Dupixent,responder,1.0,52,female,black,V,leg,severe,images/DM-004/before.jpg,images/DM-004/after.jpg,0.64,31.0,0.71,0.74,0.69,15.0,16
+DM-005,Dupixent,partial_responder,0.5,24,male,multiracial,VI,trunk,moderate,images/DM-005/before.jpg,images/DM-005/after.jpg,0.48,26.0,0.63,0.70,0.60,13.5,16
+DM-006,Ebglyss,responder,1.0,33,female,middle_eastern_north_african,IV,arm,moderate,images/DM-006/before.jpg,images/DM-006/after.jpg,0.58,20.5,0.54,0.59,0.62,10.0,16
+DM-007,Ebglyss,partial_responder,0.5,46,male,native_hawaiian_pacific_islander,V,face,mild,images/DM-007/before.jpg,images/DM-007/after.jpg,0.37,9.5,0.42,0.38,0.40,4.0,16
+DM-008,Ebglyss,non_responder,0.0,58,female,black,VI,flexural,severe,images/DM-008/before.jpg,images/DM-008/after.jpg,0.52,38.0,0.82,0.79,0.73,19.0,16
+DM-009,Ebglyss,partial_responder,0.5,31,prefer_not_to_say,other,III,neck,moderate,images/DM-009/before.jpg,images/DM-009/after.jpg,0.66,16.0,0.51,0.47,0.58,7.0,16
+DM-010,Ebglyss,non_responder,0.0,67,male,prefer_not_to_say,II,scalp,moderate,images/DM-010/before.jpg,images/DM-010/after.jpg,0.74,24.0,0.69,0.64,0.71,12.0,16

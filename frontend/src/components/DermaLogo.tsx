@@ -1,0 +1,60 @@
+type DermaLogoProps = {
+  size?: number;
+  className?: string;
+};
+
+/**
+ * DermaMatch brand mark: a magnifier examining skin (derma analysis)
+ * with a match/check spark — rendered as a gradient rounded badge.
+ */
+export function DermaLogo({ size = 52, className }: DermaLogoProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      role="img"
+      aria-label="DermaMatch logo"
+    >
+      <defs>
+        <linearGradient id="derma-logo-bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#3457d5" />
+          <stop offset="100%" stopColor="#14a37f" />
+        </linearGradient>
+        <linearGradient id="derma-logo-skin" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ffe3cf" />
+          <stop offset="100%" stopColor="#f4b48c" />
+        </linearGradient>
+      </defs>
+
+      {/* Badge */}
+      <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#derma-logo-bg)" />
+
+      {/* Magnifier lens with skin sample */}
+      <circle cx="21" cy="21" r="11" fill="url(#derma-logo-skin)" stroke="#ffffff" strokeWidth="2.5" />
+
+      {/* Skin analysis marks inside the lens */}
+      <circle cx="18" cy="19" r="2" fill="#d9534f" opacity="0.85" />
+      <circle cx="24.5" cy="23.5" r="1.4" fill="#d9534f" opacity="0.7" />
+      <circle cx="22" cy="17" r="1" fill="#c0392b" opacity="0.6" />
+
+      {/* Magnifier handle */}
+      <rect
+        x="29"
+        y="29"
+        width="12"
+        height="5"
+        rx="2.5"
+        transform="rotate(45 29 29)"
+        fill="#ffffff"
+      />
+
+      {/* Match spark */}
+      <path
+        d="M35 10.5l1.1 2.6 2.6 1.1-2.6 1.1L35 18l-1.1-2.7-2.6-1.1 2.6-1.1z"
+        fill="#ffffff"
+      />
+    </svg>
+  );
+}

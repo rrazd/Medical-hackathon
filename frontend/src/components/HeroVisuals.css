@@ -1,0 +1,232 @@
+/* Hero Visuals Styling */
+
+.hero-visuals-container {
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Padding reserves room for the floating chips so they never clip or
+     collide with the cards, at any width. */
+  padding: 48px 60px;
+}
+
+/* Stage tracks the width of the two cards; floating chips anchor to it. */
+.visuals-stage {
+  position: relative;
+  z-index: 2;
+}
+
+/* Wrapper that centers the dot-burst ring behind the before/after cards */
+.burst-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cards-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.visuals-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 22px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* Example Cards */
+.example-card {
+  background: white;
+  border: 1px solid #dce3ef;
+  border-radius: 18px;
+  padding: 12px;
+  width: 124px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(47, 65, 110, 0.12);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.example-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 38px rgba(47, 65, 110, 0.16);
+}
+
+.card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5a6b82;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.skin-simulation {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border-radius: 14px;
+  margin: 0 auto 8px;
+  box-shadow: inset 0 0 0 1px rgba(19, 26, 43, 0.08);
+}
+
+.card-caption {
+  font-size: 12px;
+  color: #172033;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Biologic & Treatment Icons */
+.biologic-icon,
+.treatment-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+
+.biologic-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.biologic-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.biologic-icon.injection {
+  background: linear-gradient(135deg, #3457d5, #2d47c0);
+}
+
+.biologic-icon.antibody {
+  background: linear-gradient(135deg, #14a37f, #0f8768);
+}
+
+.treatment-icon {
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: linear-gradient(135deg, #3457d5, #2d47c0);
+}
+
+.treatment-icon.ebglyss {
+  background: linear-gradient(135deg, #14a37f, #0f8768);
+}
+
+/* Floating Elements — anchored to stage corners, pushed outward so they
+   sit beside the cards instead of on top of them. */
+.floating-element {
+  position: absolute;
+  animation: float 6s ease-in-out infinite;
+  z-index: 3;
+}
+
+.floating-1 {
+  top: -22px;
+  left: -30px;
+  animation-delay: 0s;
+}
+
+.floating-2 {
+  bottom: -20px;
+  left: -34px;
+  animation-delay: 1s;
+}
+
+.floating-3 {
+  top: -26px;
+  right: -34px;
+  animation-delay: 2s;
+}
+
+.floating-4 {
+  bottom: -22px;
+  right: -30px;
+  animation-delay: 1.5s;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-12px) rotate(4deg);
+    opacity: 1;
+  }
+}
+
+/* Background Arc */
+.background-arc {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+  z-index: 1;
+}
+
+/* Soft organic framing blob */
+.hero-blob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 118%;
+  height: 118%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  filter: drop-shadow(0 24px 48px rgba(52, 87, 213, 0.12));
+  pointer-events: none;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .hero-visuals-container {
+    min-height: 300px;
+    padding: 44px 56px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-visuals-container {
+    padding: 40px 20px;
+  }
+
+  .visuals-main {
+    gap: 16px;
+  }
+
+  .example-card {
+    width: 120px;
+  }
+
+  .skin-simulation {
+    width: 96px;
+    height: 96px;
+  }
+
+  /* Hide floating chips on very narrow screens where there is no room. */
+  .floating-element {
+    display: none;
+  }
+}

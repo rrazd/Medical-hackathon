@@ -1,0 +1,5 @@
+case_id,age,erythema,sex,biologic,outcome
+c0,30,0.30,F,Dupixent,1
+c1,50,0.85,M,Dupixent,0
+c2,40,0.45,F,Ebglyss,1
+c3,60,0.90,M,Dupixent,1
