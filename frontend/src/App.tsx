@@ -33,6 +33,7 @@ function Results({ result }: { result: PredictResponse }) {
 export default function App() {
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [result, setResult] = useState<PredictResponse | null>(null);
+  const [wizardKey, setWizardKey] = useState(0);
 
   const mutation = useMutation({
     mutationFn: ({ values, image }: { values: IntakeFormValues; image: File }) => predict(values, image),
@@ -46,12 +47,17 @@ export default function App() {
   function restart() {
     setResult(null);
     mutation.reset();
+    // Remount the wizard so useForm re-initializes from the freshly-cleared
+    // storage — guarantees a blank step 2 even when Start over is pressed from
+    // the results step (where the intake fields are unmounted).
+    setWizardKey((key) => key + 1);
   }
 
   if (view === 'wizard') {
     return (
       <main className="app-shell">
         <WizardView
+          key={wizardKey}
           onSubmit={onSubmit}
           isSubmitting={mutation.isPending}
           errorMessage={mutation.isError ? mutation.error.message : undefined}

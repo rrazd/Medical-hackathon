@@ -35,10 +35,7 @@ describe('ResultCards', () => {
     expect(dupixent).not.toBeNull();
     expect(ebglyss).not.toBeNull();
     expect(within(dupixent as HTMLElement).getByRole('img', { name: /72 % likelihood/i })).toBeInTheDocument();
-    expect(within(dupixent as HTMLElement).getByText('5 similar cases')).toBeInTheDocument();
-    expect(within(dupixent as HTMLElement).getByText('0.72')).toBeInTheDocument();
     expect(within(ebglyss as HTMLElement).getByRole('img', { name: /64 % likelihood/i })).toBeInTheDocument();
-    expect(within(ebglyss as HTMLElement).getByText('4 similar cases')).toBeInTheDocument();
-    expect(within(ebglyss as HTMLElement).getByText('0.64')).toBeInTheDocument();
+    expect(screen.getAllByText('mock prototype estimate')).toHaveLength(2);
   });
 });

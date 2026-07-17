@@ -38,14 +38,6 @@ export function ResultCards({ likelihoods, exactMatch }: ResultCardsProps) {
                     )}
                   </dd>
                 </div>
-                <div>
-                  <dt>Matched cases</dt>
-                  <dd>{item.matched_case_count} similar cases</dd>
-                </div>
-                <div>
-                  <dt>Match strength</dt>
-                  <dd>{item.weighted_outcome_score.toFixed(2)}</dd>
-                </div>
               </dl>
             </article>
           );
