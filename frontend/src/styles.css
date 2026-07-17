@@ -1365,6 +1365,7 @@ button.tertiary:focus-visible {
   cursor: pointer;
   white-space: nowrap;
   border-bottom: 1px dotted currentColor;
+  border-radius: 0;
   line-height: 1.2;
   box-shadow: none;
   transform: none;
