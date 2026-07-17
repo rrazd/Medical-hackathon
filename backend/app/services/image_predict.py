@@ -7,6 +7,7 @@ distance-weighted average of the improvement scores of the most similar cases.
 
 from __future__ import annotations
 
+import itertools
 import math
 import uuid
 from dataclasses import dataclass
@@ -328,8 +329,73 @@ BEST_MATCH_WEIGHT = 0.7
 MEAN_MATCH_WEIGHT = 0.3
 
 
+def _raw_match_score(biologic: str, scored: List[_ScoredCase]) -> Optional[float]:
+    matches = [item for item in scored if item.case.biologic == biologic][
+        :TOP_K_NEIGHBORS
+    ]
+    if not matches:
+        return None
+    best_similarity = matches[0].similarity
+    mean_similarity = sum(item.similarity for item in matches) / len(matches)
+    return BEST_MATCH_WEIGHT * best_similarity + MEAN_MATCH_WEIGHT * mean_similarity
+
+
+_CALIBRATION_CACHE: Dict[int, Dict[str, float]] = {}
+
+
+def _calibration_offsets(cases: List[ImageReferenceCase]) -> Dict[str, float]:
+    """Additive per-biologic offsets that remove any structural head-start.
+
+    The reference dataset is not guaranteed to be balanced in feature space — one
+    biologic's cases may sit closer to the "center" of plausible uploads than the
+    other's, so an arbitrary photo would score higher for it regardless of the
+    patient's actual skin. We correct this by sweeping a deterministic grid of
+    synthetic patients that spans the plausible biomarker space, measuring each
+    biologic's average base score over that grid, and shifting both biologics to
+    their shared mean. After calibration a neutral upload scores the two biologics
+    equally, so the photo's real biomarkers and the intake answers — not a dataset
+    artifact — decide the pick.
+    """
+    cache_key = id(cases)
+    cached = _CALIBRATION_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    totals: Dict[str, float] = {biologic: 0.0 for biologic in BIOLOGICS}
+    counts: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
+    # Sweep each biomarker across low/mid/high levels; the product of these levels
+    # is a deterministic, evenly spread sample of the space of plausible uploads.
+    levels = (0.15, 0.35, 0.5, 0.65, 0.85)
+    for combo in itertools.product(levels, repeat=len(BIOMARKER_FIELDS)):
+        values = {}
+        for field, level in zip(BIOMARKER_FIELDS, combo):
+            values[field] = level * 100.0 if field.endswith("_pct") else level
+        synthetic = PatientFeatures(**values)
+        scored = _score_cases(synthetic, 40, cases)
+        for biologic in BIOLOGICS:
+            raw = _raw_match_score(biologic, scored)
+            if raw is not None:
+                totals[biologic] += raw
+                counts[biologic] += 1
+    expected = {
+        biologic: (totals[biologic] / counts[biologic])
+        for biologic in BIOLOGICS
+        if counts[biologic] > 0
+    }
+    if len(expected) < 2:
+        return {biologic: 0.0 for biologic in BIOLOGICS}
+    grand_mean = sum(expected.values()) / len(expected)
+    offsets = {
+        biologic: grand_mean - expected.get(biologic, grand_mean)
+        for biologic in BIOLOGICS
+    }
+    _CALIBRATION_CACHE[cache_key] = offsets
+    return offsets
+
+
 def _likelihood_for_biologic(
-    biologic: str, scored: List[_ScoredCase]
+    biologic: str,
+    scored: List[_ScoredCase],
+    calibration: Optional[Dict[str, float]] = None,
 ) -> BiologicLikelihood:
     matches = [item for item in scored if item.case.biologic == biologic][
         :TOP_K_NEIGHBORS
@@ -347,6 +413,8 @@ def _likelihood_for_biologic(
     best_similarity = matches[0].similarity
     mean_similarity = sum(item.similarity for item in matches) / len(matches)
     match_score = BEST_MATCH_WEIGHT * best_similarity + MEAN_MATCH_WEIGHT * mean_similarity
+    if calibration:
+        match_score = min(1.0, max(0.0, match_score + calibration.get(biologic, 0.0)))
     return BiologicLikelihood(
         biologic=biologic,
         likelihood_pct=round(match_score * 100, 1),
@@ -443,25 +511,14 @@ def _find_exact_match(
     return best
 
 
-def _join_labels(labels: List[str]) -> str:
-    if not labels:
-        return ""
-    if len(labels) == 1:
-        return labels[0]
-    if len(labels) == 2:
-        return f"{labels[0]} and {labels[1]}"
-    return f"{', '.join(labels[:-1])}, and {labels[-1]}"
-
-
 def _biomarker_differentiators(
     recommended: str, other: str, scored: List[_ScoredCase]
 ) -> List[Tuple[str, float]]:
     """Rank biomarkers by how much they pull the match toward `recommended` vs `other`.
 
-    For each biomarker we compare the patient's average (weighted) distance to the
-    recommended biologic's closest cases against the other biologic's closest cases.
-    A positive value means the patient's skin on that feature looks more like the
-    recommended cohort (a driver of the pick); negative means it leans to the other.
+    Returns (field, weighted_pull) sorted by descending pull. A positive value means
+    the patient's skin on that feature looks more like the recommended cohort (a driver
+    of the pick); negative means it leans toward the other biologic.
     """
 
     def top_matches(biologic: str) -> List[_ScoredCase]:
@@ -481,20 +538,44 @@ def _biomarker_differentiators(
         rec_mean = sum(rec_d) / len(rec_d)
         oth_mean = sum(oth_d) / len(oth_d)
         weighted_pull = (oth_mean - rec_mean) * MATCH_WEIGHTS.get(field, 0.0)
-        ranked.append((BIOMARKER_LABELS.get(field, field), weighted_pull))
+        ranked.append((field, weighted_pull))
     ranked.sort(key=lambda pair: pair[1], reverse=True)
     return ranked
 
 
+def _cohort_feature_means(biologic: str, scored: List[_ScoredCase]) -> Dict[str, float]:
+    """Average normalized (0–1) biomarker values of a biologic's closest reference cases."""
+    matches = [m for m in scored if m.case.biologic == biologic][:TOP_K_NEIGHBORS]
+    means: Dict[str, float] = {}
+    for field in BIOMARKER_FIELDS:
+        values = [_normalized(m.case.before_features, field) for m in matches]
+        if values:
+            means[field] = sum(values) / len(values)
+    return means
+
+
+def _level_word(value: float) -> str:
+    if value < 0.2:
+        return "very low"
+    if value < 0.4:
+        return "low"
+    if value < 0.6:
+        return "moderate"
+    if value < 0.8:
+        return "high"
+    return "very high"
+
+
 def _recommendation_rationale(
+    patient: PatientFeatures,
     best: BiologicLikelihood,
     other: BiologicLikelihood,
     scored: List[_ScoredCase],
     comorbidity_label: Optional[str],
 ) -> str:
     diffs = _biomarker_differentiators(best.biologic, other.biologic, scored)
-    drivers = [label for label, val in diffs if val > 1e-4]
-    against = [label for label, val in diffs if val < -1e-4]
+    drivers = [field for field, val in diffs if val > 1e-4]
+    against = [field for field, val in diffs if val < -1e-4]
     net = sum(val for _, val in diffs)
     margin = round(best.likelihood_pct - other.likelihood_pct, 1)
 
@@ -515,16 +596,36 @@ def _recommendation_rationale(
             f"to discuss with your dermatologist."
         )
 
-    driver_text = _join_labels(drivers[:2])
-    sentence = (
-        f"Your {driver_text} most closely resemble reference patients who cleared on "
-        f"{best.biologic} rather than {other.biologic}"
-    )
+    rec_means = _cohort_feature_means(best.biologic, scored)
+    oth_means = _cohort_feature_means(other.biologic, scored)
+
+    def clause(field: str) -> str:
+        label = BIOMARKER_LABELS.get(field, field)
+        pv = _normalized(patient, field)
+        rec = rec_means.get(field, pv)
+        oth = oth_means.get(field, pv)
+        return (
+            f"your {label} is {_level_word(pv)} (~{round(pv * 100)}/100), which lines up "
+            f"with the {best.biologic} responders (~{round(rec * 100)}) and sits apart from "
+            f"the {other.biologic} responders (~{round(oth * 100)})"
+        )
+
+    driver_clauses = "; ".join(clause(field) for field in drivers[:2])
+    sentence = f"Specifically, {driver_clauses}."
+
     if against:
-        sentence += f", even though your {against[0]} leans slightly toward {other.biologic}"
+        field = against[0]
+        label = BIOMARKER_LABELS.get(field, field)
+        pv = _normalized(patient, field)
+        oth = oth_means.get(field, pv)
+        sentence += (
+            f" The one feature pointing the other way is your {label} "
+            f"(~{round(pv * 100)}/100 vs the {other.biologic} group's ~{round(oth * 100)})."
+        )
+
     margin_text = f"a {margin:g}-point edge" if margin > 0 else "a razor-thin edge"
     sentence += (
-        f" — giving {best.biologic} {margin_text} "
+        f" On balance that gives {best.biologic} {margin_text} "
         f"({best.likelihood_pct:g}% vs {other.likelihood_pct:g}%)."
     )
     if comorbidity_label:
@@ -568,7 +669,7 @@ def _explanation(
         rationale = None
         if len(ranked) > 1:
             rationale = _recommendation_rationale(
-                best, ranked[1], scored, comorbidity_label
+                patient, best, ranked[1], scored, comorbidity_label
             )
 
     return Explanation(
@@ -590,7 +691,11 @@ def build_predict_response(
     patient_features, quality = extract_biomarkers(image_bytes)
     scored = _score_cases(patient_features, age, cases)
 
-    likelihoods = [_likelihood_for_biologic(biologic, scored) for biologic in BIOLOGICS]
+    calibration = _calibration_offsets(cases)
+    likelihoods = [
+        _likelihood_for_biologic(biologic, scored, calibration)
+        for biologic in BIOLOGICS
+    ]
     matched_patients = _matched_patients(scored)
 
     lifestyle_nudges, lifestyle_considerations = _analyze_lifestyle(daily_routine)
