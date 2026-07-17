@@ -156,4 +156,43 @@ describe('App', () => {
     expect(formData.get('prior_treatments')).toBe('topical steroids');
     expect(formData.get('baseline_severity')).toBe('moderate');
   });
+
+  it('clears step 2 intake when starting over', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify(mockPredictResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    localStorage.clear();
+
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /get started/i }));
+
+    // Step 1 → upload → Step 2 → fill → Step 3 → estimate.
+    const image = new File(['image'], 'baseline.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText(/baseline AD photo/i), image);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.type(screen.getByRole('spinbutton', { name: /age/i }), '36');
+    await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
+    await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
+    await user.selectOptions(screen.getByRole('combobox', { name: /fitzpatrick skin type/i }), 'IV');
+    await user.type(screen.getByLabelText(/body area/i), 'forearms');
+    await user.selectOptions(screen.getByRole('combobox', { name: /baseline severity/i }), 'moderate');
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /estimate response/i }));
+
+    // Results → Start over → re-upload → back to Step 2 must be blank.
+    await user.click(await screen.findByRole('button', { name: /start over/i }, { timeout: 5000 }));
+    await user.upload(screen.getByLabelText(/baseline AD photo/i), image);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByRole('spinbutton', { name: /age/i })).toHaveValue(null);
+    expect(screen.getByLabelText(/race\/ethnicity/i)).toHaveValue('');
+    expect(screen.getByLabelText(/body area/i)).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /sex/i })).toHaveValue('');
+  });
 });
