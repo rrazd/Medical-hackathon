@@ -1388,7 +1388,6 @@ button.tertiary:focus-visible {
   background: #fff;
   border: 1px solid var(--brand-200);
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-brand);
   text-align: left;
 }
 
