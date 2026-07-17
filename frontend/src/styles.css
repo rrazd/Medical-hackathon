@@ -1199,6 +1199,12 @@ button:disabled {
   gap: var(--sp-3);
 }
 
+.wizard-nav-right {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
 button.secondary {
   background: var(--surface);
   color: var(--brand-600);

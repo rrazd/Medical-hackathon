@@ -426,9 +426,14 @@ export function WizardView({
       {!isAnalyzing && step === 3 && (
         <div className="wizard-nav">
           <div className="wizard-nav-left" />
-          <button type="button" onClick={restart}>
-            Start over
-          </button>
+          <div className="wizard-nav-right">
+            <button type="button" className="secondary" onClick={handleExit}>
+              Back to Home
+            </button>
+            <button type="button" onClick={restart}>
+              Start over
+            </button>
+          </div>
         </div>
       )}
     </section>
