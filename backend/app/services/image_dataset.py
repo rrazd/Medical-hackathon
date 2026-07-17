@@ -10,15 +10,43 @@ image: a larger visible improvement means a stronger response.
 from __future__ import annotations
 
 import csv
+import io
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+from PIL import Image
 
 from app.schemas.predict import PatientFeatures
 from app.services.biomarker_extraction import extract_biomarkers
 
 DEFAULT_DATA_ROOT = Path(__file__).resolve().parents[2] / "data"
 DEFAULT_CSV_NAME = "cases.csv"
+
+SIGNATURE_EDGE = 16  # perceptual signature is a 16x16 normalized grayscale grid
+
+
+def image_signature(image_bytes: bytes) -> Tuple[float, ...]:
+    """Return a lighting-robust perceptual signature for near-duplicate detection."""
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        gray = img.convert("L").resize(
+            (SIGNATURE_EDGE, SIGNATURE_EDGE), Image.LANCZOS
+        )
+    vector = np.asarray(gray, dtype=np.float64).flatten()
+    vector -= vector.mean()
+    norm = np.linalg.norm(vector)
+    if norm > 0:
+        vector /= norm
+    return tuple(float(v) for v in vector)
+
+
+def signature_similarity(a: Tuple[float, ...], b: Tuple[float, ...]) -> float:
+    """Cosine similarity of two normalized signatures, clamped to 0..1."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = float(np.dot(np.asarray(a), np.asarray(b)))
+    return max(0.0, min(1.0, dot))
 
 CANONICAL_BIOLOGICS = {"dupixent": "Dupixent", "ebglyss": "Ebglyss"}
 REQUIRED_COLUMNS = ("before", "after", "biologic", "age")
@@ -47,13 +75,14 @@ class ImageDatasetError(Exception):
 class ImageReferenceCase:
     case_id: str
     biologic: str
-    age: int
+    age: Optional[int]
     before_path: str
     after_path: str
     before_features: PatientFeatures
     after_features: PatientFeatures
     improvement_score: float
     outcome_label: str
+    before_signature: Tuple[float, ...] = ()
 
 
 def _clip_unit(value: float) -> float:
@@ -76,11 +105,9 @@ def compute_improvement_score(
 
 
 def _outcome_label(improvement_score: float) -> str:
-    if improvement_score >= RESPONDER_THRESHOLD:
-        return "responder"
-    if improvement_score >= PARTIAL_THRESHOLD:
-        return "partial_responder"
-    return "non_responder"
+    # Every curated case in this dataset is a documented success case: the
+    # patient improved on the listed biologic. We never label them non-responders.
+    return "improved"
 
 
 class ImageReferenceRepository:
@@ -152,12 +179,12 @@ class ImageReferenceRepository:
                         f"got '{biologic_raw}'."
                     )
                 try:
-                    age = int(float(age_raw))
+                    age: Optional[int] = int(float(age_raw)) if age_raw else None
                 except ValueError as exc:
                     raise ImageDatasetError(
                         f"Row {row_number}: age must be a number, got '{age_raw}'."
                     ) from exc
-                if not 1 <= age <= 129:
+                if age is not None and not 1 <= age <= 129:
                     raise ImageDatasetError(
                         f"Row {row_number}: age must be between 1 and 129, got {age}."
                     )
@@ -165,7 +192,8 @@ class ImageReferenceRepository:
                 before_file = self._resolve_image(before_rel, row_number)
                 after_file = self._resolve_image(after_rel, row_number)
 
-                before_features, _ = extract_biomarkers(before_file.read_bytes())
+                before_bytes = before_file.read_bytes()
+                before_features, _ = extract_biomarkers(before_bytes)
                 after_features, _ = extract_biomarkers(after_file.read_bytes())
                 improvement = compute_improvement_score(before_features, after_features)
 
@@ -180,6 +208,7 @@ class ImageReferenceRepository:
                         after_features=after_features,
                         improvement_score=improvement,
                         outcome_label=_outcome_label(improvement),
+                        before_signature=image_signature(before_bytes),
                     )
                 )
 

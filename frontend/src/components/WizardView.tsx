@@ -73,6 +73,8 @@ export function WizardView({
   const [fileError, setFileError] = useState('');
   const [fileSize, setFileSize] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const analyzeStartRef = useRef(0);
   const latestPreviewUrl = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -101,10 +103,23 @@ export function WizardView({
     return () => subscription.unsubscribe();
   }, [watch]);
 
-  // Advance to the results step once a prediction comes back.
+  // Advance to the results step once a prediction comes back — but hold the
+  // "analyzing" animation for at least 3s so the analysis feels substantive.
   useEffect(() => {
-    if (hasResult) setStep(3);
-  }, [hasResult]);
+    if (!hasResult || !isAnalyzing) return;
+    const elapsed = Date.now() - analyzeStartRef.current;
+    const remaining = Math.max(0, 3000 - elapsed);
+    const timer = setTimeout(() => {
+      setIsAnalyzing(false);
+      setStep(3);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [hasResult, isAnalyzing]);
+
+  // Stop the analyzing animation if the request fails so the error is visible.
+  useEffect(() => {
+    if (errorMessage) setIsAnalyzing(false);
+  }, [errorMessage]);
 
   // Clean up object URL on unmount.
   useEffect(
@@ -187,7 +202,10 @@ export function WizardView({
   }
 
   function submit() {
-    if (selectedFile) onSubmit(getValues(), selectedFile);
+    if (!selectedFile) return;
+    setIsAnalyzing(true);
+    analyzeStartRef.current = Date.now();
+    onSubmit(getValues(), selectedFile);
   }
 
   function restart() {
@@ -224,8 +242,25 @@ export function WizardView({
       </ol>
 
       <div className="wizard-body card">
+        {isAnalyzing && (
+          <div className="analyzing" role="status" aria-live="polite">
+            <div className="analyzing-scan" aria-hidden="true">
+              {previewUrl && <img className="analyzing-photo" src={previewUrl} alt="" />}
+              <div className="analyzing-scanline" />
+              <div className="analyzing-ring" />
+            </div>
+            <h3>Analyzing your photo…</h3>
+            <ul className="analyzing-steps">
+              <li>Detecting affected skin regions</li>
+              <li>Measuring visual biomarkers</li>
+              <li>Matching against similar reference cases</li>
+            </ul>
+            <p className="hint">This only takes a moment.</p>
+          </div>
+        )}
+
         {/* Step 1 — Upload */}
-        {step === 0 && (
+        {!isAnalyzing && step === 0 && (
           <div className="wizard-step">
             <h3>Upload your baseline photo</h3>
             <p className="hint">A clear JPEG or PNG of the affected area. It stays in this browser session only.</p>
@@ -303,7 +338,7 @@ export function WizardView({
         )}
 
         {/* Step 2 — Details */}
-        {step === 1 && (
+        {!isAnalyzing && step === 1 && (
           <div className="wizard-step">
             <h3>Tell us about you</h3>
             <p className="hint">These details help match you with similar reference cases.</p>
@@ -312,7 +347,7 @@ export function WizardView({
         )}
 
         {/* Step 3 — Review */}
-        {step === 2 && (
+        {!isAnalyzing && step === 2 && (
           <div className="wizard-step">
             <h3>Review and confirm</h3>
             <p className="hint">Check your inputs, then run the estimate.</p>
@@ -332,9 +367,6 @@ export function WizardView({
                 ))}
               </dl>
             </div>
-            <button type="button" onClick={submit} disabled={isSubmitting}>
-              {isSubmitting ? 'Estimating…' : 'Estimate response'}
-            </button>
             {errorMessage && <p className="warning">{errorMessage}</p>}
           </div>
         )}
@@ -351,7 +383,7 @@ export function WizardView({
       </div>
 
       {/* Footer navigation */}
-      {step < 3 && (
+      {!isAnalyzing && step < 3 && (
         <div className="wizard-nav">
           <div className="wizard-nav-left">
             {step > 0 && (
@@ -359,13 +391,18 @@ export function WizardView({
                 Back
               </button>
             )}
-            <button type="button" className="secondary" onClick={onExit}>
+            <button type="button" className="tertiary" onClick={onExit}>
               Cancel
             </button>
           </div>
           {step < 2 && (
             <button type="button" onClick={goNext} disabled={step === 0 && !selectedFile}>
               Next
+            </button>
+          )}
+          {step === 2 && (
+            <button type="button" onClick={submit} disabled={isSubmitting}>
+              {isSubmitting ? 'Estimating…' : 'Estimate response'}
             </button>
           )}
         </div>

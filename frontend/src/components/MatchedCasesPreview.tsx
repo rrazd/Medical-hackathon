@@ -17,8 +17,8 @@ export function MatchedCasesPreview({ matchedPatients }: MatchedCasesPreviewProp
           <article className="matched-case" key={match.case_id}>
             <h3>{match.case_id}</h3>
             <p>
-              {Math.round(match.similarity * 100)}% similarity · {match.biologic_used} ·{' '}
-              {match.outcome_label} ({match.outcome_score.toFixed(2)} outcome score)
+              {Math.round(match.similarity * 100)}% similarity · improved on{' '}
+              {match.biologic_used}
             </p>
             <p>{match.demographic_summary}</p>
             <ul>

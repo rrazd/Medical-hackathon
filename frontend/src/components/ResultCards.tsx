@@ -31,7 +31,7 @@ export function ResultCards({ likelihoods }: ResultCardsProps) {
                 <dd>{item.matched_case_count} similar cases</dd>
               </div>
               <div>
-                <dt>Weighted outcome score</dt>
+                <dt>Match strength</dt>
                 <dd>{item.weighted_outcome_score.toFixed(2)}</dd>
               </div>
             </dl>

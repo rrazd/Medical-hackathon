@@ -141,7 +141,9 @@ describe('App', () => {
     // Step 3 — review, then run the estimate.
     await user.click(screen.getByRole('button', { name: /estimate response/i }));
 
-    expect(await screen.findByRole('heading', { name: /your treatment response estimate/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /your treatment response estimate/i }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /dupixent vs ebglyss likelihood comparison/i })).toBeInTheDocument();
     expect(screen.getByText(/not a diagnosis, prescription, or medical advice/i)).toBeInTheDocument();
     expect(screen.getByText(/not stored as an account or EHR record/i)).toBeInTheDocument();

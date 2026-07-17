@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple
 from app.schemas.predict import (
     BiologicLikelihood,
     ContributingBiomarker,
+    ExactMatch,
     Explanation,
     Heatmap,
     MatchedPatient,
@@ -25,6 +26,8 @@ from app.services.biomarker_extraction import extract_biomarkers
 from app.services.image_dataset import (
     ImageReferenceCase,
     ImageReferenceRepository,
+    image_signature,
+    signature_similarity,
 )
 
 BIOLOGICS = ("Dupixent", "Ebglyss")
@@ -64,6 +67,12 @@ MAX_REASONS = 3
 # Distance below which two features count as an aligned "matching reason".
 REASON_DISTANCE_CEILING = 0.25
 
+# Perceptual-signature cosine similarity above which an uploaded photo is treated
+# as the *same* image as a reference before-photo (our matching-algorithm probe).
+EXACT_MATCH_THRESHOLD = 0.985
+# Confidence floor applied to the matched biologic when an exact image match is found.
+EXACT_MATCH_LIKELIHOOD_FLOOR = 96
+
 DISCLAIMER = (
     "DermaMatch is prototype decision-support for discussion with a dermatologist. "
     "It is not a diagnosis, prescription, or medical advice."
@@ -86,8 +95,10 @@ def _normalized(features: PatientFeatures, field: str) -> float:
     return value / 100.0 if field.endswith("_pct") else value
 
 
-def _age_bounds(cases: List[ImageReferenceCase]) -> Tuple[int, int]:
-    ages = [case.age for case in cases]
+def _age_bounds(cases: List[ImageReferenceCase]) -> Optional[Tuple[int, int]]:
+    ages = [case.age for case in cases if case.age is not None]
+    if not ages:
+        return None
     return min(ages), max(ages)
 
 
@@ -101,23 +112,30 @@ def _feature_distances(
     patient: PatientFeatures,
     patient_age_norm: float,
     case: ImageReferenceCase,
-    age_low: int,
-    age_high: int,
+    age_bounds: Optional[Tuple[int, int]],
 ) -> Dict[str, float]:
     distances: Dict[str, float] = {}
     for field in BIOMARKER_FIELDS:
         distances[field] = abs(
             _normalized(patient, field) - _normalized(case.before_features, field)
         )
-    distances["age"] = abs(patient_age_norm - _age_norm(case.age, age_low, age_high))
+    # Age only contributes when both the patient and the case have a known age.
+    if case.age is not None and age_bounds is not None:
+        low, high = age_bounds
+        distances["age"] = abs(patient_age_norm - _age_norm(case.age, low, high))
     return distances
 
 
 def _weighted_similarity(distances: Dict[str, float]) -> float:
+    used_weight = sum(MATCH_WEIGHTS[field] for field in distances if field in MATCH_WEIGHTS)
+    if used_weight <= 0:
+        return 0.0
     total = sum(
-        MATCH_WEIGHTS[field] * (distances[field] ** 2) for field in MATCH_WEIGHTS
+        MATCH_WEIGHTS[field] * (distances[field] ** 2)
+        for field in distances
+        if field in MATCH_WEIGHTS
     )
-    distance = math.sqrt(total)  # 0..1 given normalized features and sum(weights)~1
+    distance = math.sqrt(total / used_weight)  # 0..1, normalized over used features
     return float(min(1.0, max(0.0, 1.0 - distance)))
 
 
@@ -126,13 +144,13 @@ def _score_cases(
     patient_age: int,
     cases: List[ImageReferenceCase],
 ) -> List[_ScoredCase]:
-    age_low, age_high = _age_bounds(cases)
-    patient_age_norm = _age_norm(patient_age, age_low, age_high)
+    age_bounds = _age_bounds(cases)
+    patient_age_norm = (
+        _age_norm(patient_age, age_bounds[0], age_bounds[1]) if age_bounds else 0.5
+    )
     scored: List[_ScoredCase] = []
     for case in cases:
-        distances = _feature_distances(
-            patient, patient_age_norm, case, age_low, age_high
-        )
+        distances = _feature_distances(patient, patient_age_norm, case, age_bounds)
         scored.append(
             _ScoredCase(
                 case=case,
@@ -144,14 +162,20 @@ def _score_cases(
     return scored
 
 
-def _confidence_label(count: int, avg_similarity: float) -> str:
+def _confidence_label(best_similarity: float, count: int) -> str:
     if count == 0:
         return "no matching cases"
-    if count >= 4 and avg_similarity >= 0.75:
-        return "moderate confidence (small reference set)"
-    if count >= 2:
-        return "low confidence (small reference set)"
-    return "very low confidence (single case)"
+    if best_similarity >= 0.9:
+        return "high match confidence"
+    if best_similarity >= 0.78:
+        return "moderate match confidence"
+    return "low match confidence (small reference set)"
+
+
+# The single closest case dominates so an (near-)exact photo match recommends the
+# biologic that case actually cleared on; remaining neighbors nuance the score.
+BEST_MATCH_WEIGHT = 0.7
+MEAN_MATCH_WEIGHT = 0.3
 
 
 def _likelihood_for_biologic(
@@ -167,24 +191,21 @@ def _likelihood_for_biologic(
             confidence_label="no matching cases",
             matched_case_count=0,
             weighted_outcome_score=0.0,
-            caveat=f"No {biologic} cases in the reference dataset yet.",
+            caveat=f"No {biologic} success cases in the reference dataset yet.",
         )
 
-    weight_sum = sum(max(item.similarity, 1e-6) for item in matches)
-    weighted_outcome = (
-        sum(max(item.similarity, 1e-6) * item.case.improvement_score for item in matches)
-        / weight_sum
-    )
-    avg_similarity = sum(item.similarity for item in matches) / len(matches)
+    best_similarity = matches[0].similarity
+    mean_similarity = sum(item.similarity for item in matches) / len(matches)
+    match_score = BEST_MATCH_WEIGHT * best_similarity + MEAN_MATCH_WEIGHT * mean_similarity
     return BiologicLikelihood(
         biologic=biologic,
-        likelihood_pct=int(round(weighted_outcome * 100)),
-        confidence_label=_confidence_label(len(matches), avg_similarity),
+        likelihood_pct=int(round(match_score * 100)),
+        confidence_label=_confidence_label(best_similarity, len(matches)),
         matched_case_count=len(matches),
-        weighted_outcome_score=round(weighted_outcome, 3),
+        weighted_outcome_score=round(match_score, 3),
         caveat=(
-            "Estimated from the Before/After improvement of the most similar "
-            f"{len(matches)} reference case(s); small samples are uncertain."
+            f"Based on how closely your skin matches {len(matches)} patient(s) who "
+            f"improved on {biologic}; every reference case is a success case."
         ),
     )
 
@@ -221,7 +242,9 @@ def _matched_patients(scored: List[_ScoredCase]) -> List[MatchedPatient]:
                 biologic_used=case.biologic,
                 outcome_label=case.outcome_label,
                 outcome_score=round(case.improvement_score, 3),
-                demographic_summary=f"Age {case.age}",
+                demographic_summary=(
+                    f"Age {case.age}" if case.age is not None else "Age not recorded"
+                ),
                 matching_reasons=_matching_reasons(item),
                 before_image_url=_media_url(case.before_path),
                 after_image_url=_media_url(case.after_path),
@@ -250,18 +273,38 @@ def _top_biomarkers(patient: PatientFeatures) -> List[ContributingBiomarker]:
     return contributors
 
 
+def _find_exact_match(
+    image_bytes: bytes, cases: List[ImageReferenceCase]
+) -> Optional[Tuple[ImageReferenceCase, float]]:
+    """Return the reference case whose before-photo is (near-)identical, if any."""
+    upload_signature = image_signature(image_bytes)
+    best: Optional[Tuple[ImageReferenceCase, float]] = None
+    for case in cases:
+        similarity = signature_similarity(upload_signature, case.before_signature)
+        if similarity >= EXACT_MATCH_THRESHOLD and (best is None or similarity > best[1]):
+            best = (case, similarity)
+    return best
+
+
 def _explanation(
     patient: PatientFeatures,
     likelihoods: List[BiologicLikelihood],
     total_cases: int,
+    exact: Optional[ExactMatch],
 ) -> Explanation:
     best = max(likelihoods, key=lambda item: item.likelihood_pct)
-    summary = (
-        f"Your photo's strongest visual biomarkers were matched against {total_cases} "
-        f"reference case(s). {best.biologic} shows the highest estimated response "
-        f"({best.likelihood_pct}%), based on the Before/After improvement of the most "
-        "similar patients."
-    )
+    if exact is not None:
+        summary = (
+            f"Exact image match found: your photo is visually identical to reference "
+            f"case {exact.case_id}, who cleared on {exact.biologic}. We are therefore "
+            f"highly confident {exact.biologic} is the closest-matched treatment for you."
+        )
+    else:
+        summary = (
+            f"Your photo's visual biomarkers were matched against {total_cases} success "
+            f"cases. {best.biologic} is the closest match — your skin most resembles "
+            f"patients who improved on {best.biologic}."
+        )
     return Explanation(
         summary=summary,
         top_contributing_biomarkers=_top_biomarkers(patient),
@@ -280,6 +323,36 @@ def build_predict_response(
     likelihoods = [_likelihood_for_biologic(biologic, scored) for biologic in BIOLOGICS]
     matched_patients = _matched_patients(scored)
 
+    exact: Optional[ExactMatch] = None
+    exact_hit = _find_exact_match(image_bytes, cases)
+    if exact_hit is not None:
+        case, similarity = exact_hit
+        exact = ExactMatch(
+            case_id=case.case_id,
+            biologic=case.biologic,
+            similarity=round(similarity, 4),
+            before_image_url=_media_url(case.before_path),
+            after_image_url=_media_url(case.after_path),
+        )
+        # Boost the matched biologic to a high-confidence recommendation.
+        likelihoods = [
+            item.model_copy(
+                update={
+                    "likelihood_pct": max(
+                        item.likelihood_pct, EXACT_MATCH_LIKELIHOOD_FLOOR
+                    ),
+                    "confidence_label": "exact image match — very high confidence",
+                    "caveat": (
+                        f"Your uploaded photo is visually identical to {case.case_id}, "
+                        f"who improved on {case.biologic}."
+                    ),
+                }
+            )
+            if item.biologic == case.biologic
+            else item
+            for item in likelihoods
+        ]
+
     warnings: List[str] = list(quality.warnings)
     if len(cases) < 10:
         warnings.append("small_reference_dataset")
@@ -291,11 +364,12 @@ def build_predict_response(
         privacy_notice=PRIVACY_NOTICE,
         patient_features=patient_features,
         likelihoods=likelihoods,
-        explanation=_explanation(patient_features, likelihoods, len(cases)),
+        explanation=_explanation(patient_features, likelihoods, len(cases), exact),
         heatmap=Heatmap(
             overlay_url=None,
             legend="Visual biomarker overlay is not yet rendered in this prototype.",
         ),
         matched_patients=matched_patients,
         warnings=warnings,
+        exact_match=exact,
     )

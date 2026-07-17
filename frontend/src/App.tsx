@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import { predict, type PredictResponse } from './api/dermaMatchClient';
+import { ExactMatchBanner } from './components/ExactMatchBanner';
 import { ExplanationPanel } from './components/ExplanationPanel';
 import { HeatmapPlaceholder } from './components/HeatmapPlaceholder';
 import { DermaLogo } from './components/DermaLogo';
@@ -24,6 +25,7 @@ function Results({ result }: { result: PredictResponse }) {
       </p>
       <SafetyNotice copy={result.disclaimer} />
       <PrivacyNotice copy={result.privacy_notice} />
+      {result.exact_match && <ExactMatchBanner match={result.exact_match} />}
       <ResultCards likelihoods={result.likelihoods} />
       <ExplanationPanel explanation={result.explanation} />
       {result.heatmap.overlay_url ? <HeatmapPlaceholder heatmap={result.heatmap} /> : null}

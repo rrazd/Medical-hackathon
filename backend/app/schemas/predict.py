@@ -51,6 +51,14 @@ class MatchedPatient(BaseModel):
     after_image_url: Optional[str] = None
 
 
+class ExactMatch(BaseModel):
+    case_id: str
+    biologic: str
+    similarity: float
+    before_image_url: Optional[str] = None
+    after_image_url: Optional[str] = None
+
+
 class PredictResponse(BaseModel):
     request_id: str = Field(..., examples=["mock-001"])
     mock: bool
@@ -62,3 +70,4 @@ class PredictResponse(BaseModel):
     heatmap: Heatmap
     matched_patients: List[MatchedPatient]
     warnings: List[str]
+    exact_match: Optional[ExactMatch] = None

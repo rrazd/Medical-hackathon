@@ -48,6 +48,14 @@ export type MatchedPatient = {
   after_image_url: string | null;
 };
 
+export type ExactMatch = {
+  case_id: string;
+  biologic: string;
+  similarity: number;
+  before_image_url: string | null;
+  after_image_url: string | null;
+};
+
 export type PredictResponse = {
   request_id: string;
   mock: boolean;
@@ -59,6 +67,7 @@ export type PredictResponse = {
   heatmap: Heatmap;
   matched_patients: MatchedPatient[];
   warnings: string[];
+  exact_match?: ExactMatch | null;
 };
 
 export async function predict(values: IntakeFormValues, image: File): Promise<PredictResponse> {
