@@ -132,7 +132,6 @@ describe('App', () => {
     await user.type(screen.getByRole('spinbutton', { name: /age/i }), '36');
     await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
-    await user.selectOptions(screen.getByRole('combobox', { name: /fitzpatrick skin type/i }), 'IV');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
     await user.click(screen.getByRole('button', { name: /next/i }));
@@ -150,7 +149,6 @@ describe('App', () => {
     expect(formData.get('age')).toBe('36');
     expect(formData.get('sex')).toBe('female');
     expect(formData.get('race_ethnicity')).toBe('Latina');
-    expect(formData.get('fitzpatrick_skin_type')).toBe('IV');
     expect(formData.get('body_area')).toBe('forearms');
     expect(formData.get('prior_treatments')).toBe('topical steroids');
   });
@@ -177,7 +175,6 @@ describe('App', () => {
     await user.type(screen.getByRole('spinbutton', { name: /age/i }), '36');
     await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
-    await user.selectOptions(screen.getByRole('combobox', { name: /fitzpatrick skin type/i }), 'IV');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /estimate response/i }));

@@ -77,7 +77,6 @@ export async function predict(values: IntakeFormValues, image: File): Promise<Pr
   body.append('age', String(values.age));
   body.append('sex', values.sex);
   body.append('race_ethnicity', values.race_ethnicity);
-  body.append('fitzpatrick_skin_type', values.fitzpatrick_skin_type);
   body.append('body_area', values.body_area);
   body.append('prior_treatments', values.prior_treatments ?? '');
   body.append('daily_routine', values.daily_routine ?? '');

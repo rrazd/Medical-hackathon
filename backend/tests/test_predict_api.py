@@ -19,7 +19,6 @@ def _intake_form() -> dict:
         "age": "36",
         "sex": "female",
         "race_ethnicity": "Latina",
-        "fitzpatrick_skin_type": "IV",
         "body_area": "forearms",
         "prior_treatments": "topical steroids, moisturizer",
     }

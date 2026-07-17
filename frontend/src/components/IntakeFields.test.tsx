@@ -11,7 +11,6 @@ const emptyDefaults: IntakeFormValues = {
   age: undefined as unknown as number,
   sex: '',
   race_ethnicity: '',
-  fitzpatrick_skin_type: '',
   body_area: '',
   prior_treatments: '',
   daily_routine: '',
@@ -49,7 +48,6 @@ describe('IntakeFields', () => {
     expect(await screen.findByText(/age is required/i)).toBeInTheDocument();
     expect(screen.getByText(/sex is required/i)).toBeInTheDocument();
     expect(screen.getByText(/race\/ethnicity is required/i)).toBeInTheDocument();
-    expect(screen.getByText(/fitzpatrick skin type is required/i)).toBeInTheDocument();
     expect(screen.getByText(/body area is required/i)).toBeInTheDocument();
     expect(screen.queryByText(/prior treatments is required/i)).not.toBeInTheDocument();
   });
@@ -62,7 +60,6 @@ describe('IntakeFields', () => {
     await user.type(screen.getByLabelText(/^age$/i), '36');
     await user.selectOptions(screen.getByLabelText(/^sex$/i), 'female');
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
-    await user.selectOptions(screen.getByLabelText(/fitzpatrick skin type/i), 'IV');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
     await user.click(screen.getByRole('button', { name: /submit intake/i }));
@@ -73,7 +70,6 @@ describe('IntakeFields', () => {
         age: 36,
         sex: 'female',
         race_ethnicity: 'Latina',
-        fitzpatrick_skin_type: 'IV',
         body_area: 'forearms',
         prior_treatments: 'topical steroids',
         daily_routine: '',

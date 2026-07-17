@@ -13,7 +13,6 @@ export const intakeSchema = z.object({
   ),
   sex: requiredText('Sex'),
   race_ethnicity: requiredText('Race/ethnicity'),
-  fitzpatrick_skin_type: requiredText('Fitzpatrick skin type'),
   body_area: requiredText('Body area'),
   prior_treatments: z.string().trim().optional(),
   daily_routine: z.string().trim().optional(),

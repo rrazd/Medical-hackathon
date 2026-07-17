@@ -26,7 +26,6 @@ async def predict(
     age: int = Form(...),
     sex: str = Form(...),
     race_ethnicity: str = Form(...),
-    fitzpatrick_skin_type: str = Form(...),
     body_area: str = Form(...),
     prior_treatments: str = Form(""),
     daily_routine: str = Form(""),
@@ -38,7 +37,6 @@ async def predict(
     for value, label in [
         (sex, "sex"),
         (race_ethnicity, "race_ethnicity"),
-        (fitzpatrick_skin_type, "fitzpatrick_skin_type"),
         (body_area, "body_area"),
     ]:
         if not value.strip():

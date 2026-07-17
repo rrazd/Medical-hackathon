@@ -60,23 +60,6 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
         </label>
 
         <label>
-          Fitzpatrick skin type
-          <select
-            aria-invalid={Boolean(errors.fitzpatrick_skin_type)}
-            aria-describedby={errors.fitzpatrick_skin_type ? 'fitzpatrick-skin-type-error' : undefined}
-            {...register('fitzpatrick_skin_type')}
-          >
-            <option value="">Select type</option>
-            {['I', 'II', 'III', 'IV', 'V', 'VI'].map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-          <FieldError id="fitzpatrick-skin-type-error" message={errors.fitzpatrick_skin_type?.message} />
-        </label>
-
-        <label>
           Body area
           <input
             aria-invalid={Boolean(errors.body_area)}
