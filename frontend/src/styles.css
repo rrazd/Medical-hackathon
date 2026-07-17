@@ -1366,12 +1366,18 @@ button.tertiary:focus-visible {
   white-space: nowrap;
   border-bottom: 1px dotted currentColor;
   line-height: 1.2;
+  box-shadow: none;
+  transform: none;
+  transition: color 0.15s ease;
 }
 
-.toggletip-trigger:hover,
+.toggletip-trigger:hover:not(:disabled),
+.toggletip-trigger:active:not(:disabled),
 .toggletip-trigger:focus-visible {
   color: var(--brand-600);
   outline: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .toggletip-bubble {
