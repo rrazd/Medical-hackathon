@@ -7,9 +7,9 @@ type MatchedCasesPreviewProps = {
 export function MatchedCasesPreview({ matchedPatients }: MatchedCasesPreviewProps) {
   return (
     <section className="card" aria-labelledby="matched-cases-heading">
-      <h2 id="matched-cases-heading">Matched-case preview stubs</h2>
+      <h2 id="matched-cases-heading">Patients like you</h2>
       <p className="hint">
-        These are mock “patients like you” placeholders. Real de-identified before/after cases come later.
+        De-identified reference cases whose baseline skin most closely matches your photo.
       </p>
 
       <div className="matched-case-list">
@@ -17,7 +17,7 @@ export function MatchedCasesPreview({ matchedPatients }: MatchedCasesPreviewProp
           <article className="matched-case" key={match.case_id}>
             <h3>{match.case_id}</h3>
             <p>
-              {Math.round(match.similarity * 100)}% mock similarity · {match.biologic_used} ·{' '}
+              {Math.round(match.similarity * 100)}% similarity · {match.biologic_used} ·{' '}
               {match.outcome_label} ({match.outcome_score.toFixed(2)} outcome score)
             </p>
             <p>{match.demographic_summary}</p>
@@ -26,7 +26,20 @@ export function MatchedCasesPreview({ matchedPatients }: MatchedCasesPreviewProp
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
-            <p className="hint">Before/after images are not available in this Phase 1 stub.</p>
+            {match.before_image_url && match.after_image_url ? (
+              <div className="matched-case-images">
+                <figure>
+                  <img src={match.before_image_url} alt={`${match.case_id} baseline (before)`} loading="lazy" />
+                  <figcaption>Before</figcaption>
+                </figure>
+                <figure>
+                  <img src={match.after_image_url} alt={`${match.case_id} after treatment`} loading="lazy" />
+                  <figcaption>After {match.biologic_used}</figcaption>
+                </figure>
+              </div>
+            ) : (
+              <p className="hint">Before/after images are not available for this case.</p>
+            )}
           </article>
         ))}
       </div>

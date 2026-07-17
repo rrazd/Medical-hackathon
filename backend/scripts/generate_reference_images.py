@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = BACKEND_ROOT / "data"
 CSV_PATH = DATA_ROOT / "reference_cases.csv"
-IMAGE_SIZE = (320, 220)
+IMAGE_SIZE = (640, 512)
 OUTCOME_SEVERITY_DELTA = {
     "responder": 0.65,
     "partial_responder": 0.35,

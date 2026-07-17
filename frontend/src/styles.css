@@ -554,6 +554,34 @@ dd {
   margin-bottom: var(--sp-1);
 }
 
+.matched-case-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.matched-case-images figure {
+  margin: 0;
+}
+
+.matched-case-images img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  display: block;
+}
+
+.matched-case-images figcaption {
+  margin-top: var(--sp-1);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
 .placeholder-box {
   align-items: center;
   color: var(--muted);

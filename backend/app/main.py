@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.api.predict import router as predict_router
+from app.services.image_dataset import DEFAULT_DATA_ROOT
 
 
 class HealthResponse(BaseModel):
@@ -26,3 +28,11 @@ def health() -> HealthResponse:
 
 
 app.include_router(predict_router)
+
+# Serve reference before/after images referenced by matched cases.
+if DEFAULT_DATA_ROOT.is_dir():
+    app.mount(
+        "/api/reference-media",
+        StaticFiles(directory=str(DEFAULT_DATA_ROOT)),
+        name="reference-media",
+    )

@@ -1,8 +1,29 @@
+import io
+
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.main import app
 
 client = TestClient(app)
+
+
+def _valid_png_bytes(size=(640, 512), color=(210, 150, 130)) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", size, color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _intake_form() -> dict:
+    return {
+        "age": "36",
+        "sex": "female",
+        "race_ethnicity": "Latina",
+        "fitzpatrick_skin_type": "IV",
+        "body_area": "forearms",
+        "prior_treatments": "topical steroids, moisturizer",
+        "baseline_severity": "moderate",
+    }
 
 
 def test_health_returns_ok():
@@ -12,25 +33,17 @@ def test_health_returns_ok():
     assert response.json() == {"ok": True}
 
 
-def test_predict_returns_mock_final_contract():
+def test_predict_returns_real_contract():
     response = client.post(
         "/api/predict",
-        data={
-            "age": "36",
-            "sex": "female",
-            "race_ethnicity": "Latina",
-            "fitzpatrick_skin_type": "IV",
-            "body_area": "forearms",
-            "prior_treatments": "topical steroids, moisturizer",
-            "baseline_severity": "moderate",
-        },
-        files={"image": ("baseline.png", b"fake-image-bytes", "image/png")},
+        data=_intake_form(),
+        files={"image": ("baseline.png", _valid_png_bytes(), "image/png")},
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["request_id"] == "mock-001"
-    assert body["mock"] is True
+    assert body["mock"] is False
+    assert body["request_id"].startswith("dm-")
     assert "not a diagnosis" in body["disclaimer"]
     assert "not stored as an account or EHR record" in body["privacy_notice"]
     assert set(body["patient_features"]) == {
@@ -42,26 +55,20 @@ def test_predict_returns_mock_final_contract():
         "affected_body_area_pct",
     }
     assert [item["biologic"] for item in body["likelihoods"]] == ["Dupixent", "Ebglyss"]
-    assert body["likelihoods"][0]["likelihood_pct"] == 72
-    assert body["likelihoods"][1]["likelihood_pct"] == 64
-    assert body["explanation"]["top_contributing_biomarkers"][0]["name"] == "lesion_coverage_pct"
+    for likelihood in body["likelihoods"]:
+        assert 0 <= likelihood["likelihood_pct"] <= 100
+        assert likelihood["matched_case_count"] >= 1
     assert body["heatmap"]["overlay_url"] is None
-    assert body["matched_patients"][0]["case_id"] == "MOCK-001"
-    assert body["warnings"] == ["Mock response only; no clinical inference has been performed."]
+    assert len(body["matched_patients"]) >= 1
+    first_match = body["matched_patients"][0]
+    assert first_match["before_image_url"].startswith("/api/reference-media/")
+    assert first_match["after_image_url"].startswith("/api/reference-media/")
 
 
 def test_predict_rejects_non_image_upload():
     response = client.post(
         "/api/predict",
-        data={
-            "age": "36",
-            "sex": "female",
-            "race_ethnicity": "Latina",
-            "fitzpatrick_skin_type": "IV",
-            "body_area": "forearms",
-            "prior_treatments": "topical steroids",
-            "baseline_severity": "moderate",
-        },
+        data=_intake_form(),
         files={"image": ("notes.txt", b"not an image", "text/plain")},
     )
 

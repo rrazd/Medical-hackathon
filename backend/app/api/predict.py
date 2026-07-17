@@ -1,9 +1,18 @@
+from functools import lru_cache
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.schemas.predict import PredictResponse
-from app.services.mock_predict import build_mock_predict_response
+from app.services.image_dataset import ImageDatasetError, ImageReferenceRepository
+from app.services.image_predict import build_predict_response
 
 router = APIRouter(prefix="/api", tags=["predict"])
+
+
+@lru_cache(maxsize=1)
+def get_repository() -> ImageReferenceRepository:
+    """Cache the reference repository so images are only processed once."""
+    return ImageReferenceRepository()
 
 
 @router.post("/predict", response_model=PredictResponse)
@@ -32,4 +41,15 @@ async def predict(
         if not value.strip():
             raise HTTPException(status_code=422, detail=f"{label} is required.")
 
-    return build_mock_predict_response()
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty.")
+
+    try:
+        repository = get_repository()
+        return build_predict_response(image_bytes, age, repository)
+    except ImageDatasetError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Reference dataset is unavailable: {exc}",
+        ) from exc

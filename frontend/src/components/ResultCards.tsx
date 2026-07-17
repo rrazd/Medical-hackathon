@@ -11,7 +11,7 @@ export function ResultCards({ likelihoods }: ResultCardsProps) {
       <div className="section-heading">
         <p className="eyebrow">Prototype output</p>
         <h2 id="likelihood-heading">Dupixent vs Ebglyss likelihood comparison</h2>
-        <p className="hint">Values below are rendered from the mock API response contract.</p>
+        <p className="hint">Estimated from your photo against visually similar reference cases.</p>
       </div>
 
       <div className="result-grid" aria-label="Treatment response estimates">
@@ -28,7 +28,7 @@ export function ResultCards({ likelihoods }: ResultCardsProps) {
               </div>
               <div>
                 <dt>Matched cases</dt>
-                <dd>{item.matched_case_count} mock cases</dd>
+                <dd>{item.matched_case_count} similar cases</dd>
               </div>
               <div>
                 <dt>Weighted outcome score</dt>

@@ -7,7 +7,7 @@ type ExplanationPanelProps = {
 export function ExplanationPanel({ explanation }: ExplanationPanelProps) {
   return (
     <section className="card" aria-labelledby="explanation-heading">
-      <h2 id="explanation-heading">Why this mock estimate looks this way</h2>
+      <h2 id="explanation-heading">Why this estimate looks this way</h2>
       <p>{explanation.summary}</p>
 
       <div className="driver-list" role="list" aria-label="Top contributing biomarker drivers">

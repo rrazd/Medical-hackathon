@@ -17,16 +17,16 @@ import './styles.css';
 function Results({ result }: { result: PredictResponse }) {
   return (
     <section className="results" aria-live="polite" aria-labelledby="results-heading">
-      <h2 id="results-heading">Mock treatment response estimates</h2>
+      <h2 id="results-heading">Your treatment response estimate</h2>
       <p className="hint">
-        Request {result.request_id} is a mock prototype response; later phases will replace these values with
-        real analysis.
+        Request {result.request_id} · estimates are derived from visually similar reference before/after cases.
+        This is decision-support, not a diagnosis.
       </p>
       <SafetyNotice copy={result.disclaimer} />
       <PrivacyNotice copy={result.privacy_notice} />
       <ResultCards likelihoods={result.likelihoods} />
       <ExplanationPanel explanation={result.explanation} />
-      <HeatmapPlaceholder heatmap={result.heatmap} />
+      {result.heatmap.overlay_url ? <HeatmapPlaceholder heatmap={result.heatmap} /> : null}
       <MatchedCasesPreview matchedPatients={result.matched_patients} />
       {result.warnings.map((warning) => (
         <p className="warning" key={warning}>{warning}</p>
