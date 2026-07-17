@@ -18,6 +18,14 @@ export type PatientFeatures = {
   affected_body_area_pct: number;
 };
 
+export type SeverityScores = {
+  iga: number;
+  iga_label: string;
+  easi: number;
+  easi_max: number;
+  severity_label: string;
+};
+
 export type ContributingBiomarker = {
   name: string;
   label: string;
@@ -64,6 +72,7 @@ export type PredictResponse = {
   disclaimer: string;
   privacy_notice: string;
   patient_features: PatientFeatures;
+  severity: SeverityScores;
   likelihoods: BiologicLikelihood[];
   explanation: Explanation;
   heatmap: Heatmap;

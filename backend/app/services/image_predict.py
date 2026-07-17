@@ -22,6 +22,7 @@ from app.schemas.predict import (
     MatchedPatient,
     PatientFeatures,
     PredictResponse,
+    SeverityScores,
 )
 from app.services.biomarker_extraction import extract_biomarkers
 from app.services.image_dataset import (
@@ -680,6 +681,70 @@ def _explanation(
     )
 
 
+_IGA_LABELS: Dict[int, str] = {
+    0: "Clear",
+    1: "Almost clear",
+    2: "Mild",
+    3: "Moderate",
+    4: "Severe",
+}
+
+
+def _easi_area_score(affected_body_area_pct: float) -> int:
+    """Map affected body-area percentage to the EASI 0–6 area score bands."""
+    pct = max(0.0, min(100.0, affected_body_area_pct))
+    if pct <= 0:
+        return 0
+    if pct < 10:
+        return 1
+    if pct < 30:
+        return 2
+    if pct < 50:
+        return 3
+    if pct < 70:
+        return 4
+    if pct < 90:
+        return 5
+    return 6
+
+
+def _severity_scores(patient: PatientFeatures) -> SeverityScores:
+    """Estimate baseline IGA and EASI from the photo's visual biomarkers.
+
+    Prototype proxies only: each EASI sign is scaled 0–3 from a biomarker
+    (erythema→redness, induration/papulation→inflammation, excoriation→dryness/
+    scaling, lichenification→skin texture), multiplied by the EASI area score
+    (0–6) for a 0–72 index. IGA (0–4) is banded from the resulting EASI so the two
+    stay consistent. These approximate clinician scoring; they do not replace it.
+    """
+    erythema = max(0.0, min(1.0, patient.erythema_score))
+    induration = max(0.0, min(1.0, patient.inflammation_score))
+    excoriation = max(0.0, min(1.0, patient.dryness_scaling_score))
+    lichenification = max(0.0, min(1.0, patient.texture_score))
+
+    sign_sum = (erythema + induration + excoriation + lichenification) * 3.0  # 0–12
+    area_score = _easi_area_score(patient.affected_body_area_pct)  # 0–6
+    easi = round(area_score * sign_sum, 1)  # 0–72
+
+    if easi <= 0:
+        iga = 0
+    elif easi <= 1.0:
+        iga = 1
+    elif easi <= 7.0:
+        iga = 2
+    elif easi <= 21.0:
+        iga = 3
+    else:
+        iga = 4
+
+    return SeverityScores(
+        iga=iga,
+        iga_label=_IGA_LABELS[iga],
+        easi=easi,
+        severity_label=_IGA_LABELS[iga],
+    )
+
+
 def build_predict_response(
     image_bytes: bytes,
     age: int,
@@ -752,6 +817,7 @@ def build_predict_response(
         disclaimer=DISCLAIMER,
         privacy_notice=PRIVACY_NOTICE,
         patient_features=patient_features,
+        severity=_severity_scores(patient_features),
         likelihoods=likelihoods,
         explanation=_explanation(
             patient_features,

@@ -8,6 +8,7 @@ import { HeroVisuals } from './components/HeroVisuals';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ResultCards } from './components/ResultCards';
 import { SafetyNotice } from './components/SafetyNotice';
+import { SeverityPanel } from './components/SeverityPanel';
 import { WizardView, INTAKE_STORAGE_KEY } from './components/WizardView';
 import type { IntakeFormValues } from './types/intake';
 import './styles.css';
@@ -25,6 +26,7 @@ function Results({ result }: { result: PredictResponse }) {
         </div>
       )}
       <ResultCards likelihoods={result.likelihoods} exactMatch={result.exact_match} />
+      <SeverityPanel severity={result.severity} />
       <ExplanationPanel explanation={result.explanation} />
     </section>
   );

@@ -28,6 +28,13 @@ const mockPredictResponse = {
     inflammation_score: 0.68,
     affected_body_area_pct: 12.5,
   },
+  severity: {
+    iga: 3,
+    iga_label: 'Moderate',
+    easi: 18.0,
+    easi_max: 72.0,
+    severity_label: 'Moderate',
+  },
   likelihoods: [
     {
       biologic: 'Dupixent',

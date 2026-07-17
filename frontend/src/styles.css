@@ -483,6 +483,74 @@ h1, h2, h3 {
   padding-bottom: 0;
 }
 
+.severity-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-4);
+  margin: 0 0 var(--sp-3);
+}
+
+.severity-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface-2, rgba(0, 0, 0, 0.02));
+}
+
+.severity-metric-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.severity-metric-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.severity-metric-scale {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+.severity-metric-note {
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.severity-metric-bar {
+  display: block;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.severity-metric-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent, #6366f1);
+}
+
+.severity-caption {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 dt {
   color: var(--muted);
   font-size: 0.74rem;

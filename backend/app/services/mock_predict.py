@@ -6,6 +6,7 @@ from app.schemas.predict import (
     MatchedPatient,
     PatientFeatures,
     PredictResponse,
+    SeverityScores,
 )
 
 
@@ -31,6 +32,12 @@ def build_mock_predict_response() -> PredictResponse:
             "account or EHR record."
         ),
         patient_features=features,
+        severity=SeverityScores(
+            iga=3,
+            iga_label="Moderate",
+            easi=18.0,
+            severity_label="Moderate",
+        ),
         likelihoods=[
             BiologicLikelihood(
                 biologic="Dupixent",
