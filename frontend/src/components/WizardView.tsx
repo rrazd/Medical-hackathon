@@ -28,6 +28,8 @@ const emptyDefaults: IntakeFormValues = {
 
 const INTAKE_STORAGE_KEY = 'dermamatch.intake';
 
+export { INTAKE_STORAGE_KEY };
+
 function loadPersistedDefaults(): IntakeFormValues {
   try {
     const raw = localStorage.getItem(INTAKE_STORAGE_KEY);

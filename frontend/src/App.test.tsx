@@ -195,4 +195,25 @@ describe('App', () => {
     expect(screen.getByLabelText(/body area/i)).toHaveValue('');
     expect(screen.getByRole('combobox', { name: /sex/i })).toHaveValue('');
   });
+
+  it('starts step 2 blank when beginning fresh from the landing page', async () => {
+    const user = userEvent.setup();
+    // Seed persisted intake as if a prior session had filled it in.
+    localStorage.setItem(
+      'dermamatch.intake',
+      JSON.stringify({ age: 41, sex: 'male', race_ethnicity: 'White', body_area: 'legs' }),
+    );
+
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /get started/i }));
+
+    const image = new File(['image'], 'baseline.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText(/baseline AD photo/i), image);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByRole('spinbutton', { name: /age/i })).toHaveValue(null);
+    expect(screen.getByRole('combobox', { name: /sex/i })).toHaveValue('');
+    expect(screen.getByLabelText(/race\/ethnicity/i)).toHaveValue('');
+    expect(screen.getByLabelText(/body area/i)).toHaveValue('');
+  });
 });

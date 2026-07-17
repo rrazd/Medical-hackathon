@@ -8,7 +8,7 @@ import { HeroVisuals } from './components/HeroVisuals';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ResultCards } from './components/ResultCards';
 import { SafetyNotice } from './components/SafetyNotice';
-import { WizardView } from './components/WizardView';
+import { WizardView, INTAKE_STORAGE_KEY } from './components/WizardView';
 import type { IntakeFormValues } from './types/intake';
 import './styles.css';
 
@@ -53,6 +53,20 @@ export default function App() {
     setWizardKey((key) => key + 1);
   }
 
+  function beginWizard() {
+    // Entering from the landing page is a fresh start — clear any persisted
+    // intake so step 2 begins blank.
+    try {
+      localStorage.removeItem(INTAKE_STORAGE_KEY);
+    } catch {
+      /* ignore storage failures */
+    }
+    setResult(null);
+    mutation.reset();
+    setWizardKey((key) => key + 1);
+    setView('wizard');
+  }
+
   if (view === 'wizard') {
     return (
       <main className="app-shell">
@@ -92,7 +106,7 @@ export default function App() {
             <li>Understand your response likelihood</li>
           </ul>
           <div className="hero-cta">
-            <button type="button" className="cta-button" onClick={() => setView('wizard')}>
+            <button type="button" className="cta-button" onClick={beginWizard}>
               Get started →
             </button>
           </div>
