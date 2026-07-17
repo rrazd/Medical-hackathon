@@ -73,15 +73,17 @@ def test_predict_rejects_non_image_upload():
     assert response.status_code == 400
 
 
-def test_predict_rejects_too_small_image_with_400():
+def test_predict_accepts_small_image_by_upscaling():
     response = client.post(
         "/api/predict",
         data=_intake_form(),
         files={"image": ("tiny.png", _valid_png_bytes(size=(120, 90)), "image/png")},
     )
 
-    assert response.status_code == 400
-    assert "too small" in response.json()["detail"].lower()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mock"] is False
+    assert [item["biologic"] for item in body["likelihoods"]] == ["Dupixent", "Ebglyss"]
 
 
 def test_predict_succeeds_without_baseline_severity():

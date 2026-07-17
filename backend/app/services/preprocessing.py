@@ -36,9 +36,13 @@ class PreprocessedImage:
 def preprocess_image(image_bytes: bytes, content_type: Optional[str] = None) -> PreprocessedImage:
     image = _decode_image(image_bytes, content_type)
     original_size = image.size
-    _validate_dimensions(original_size)
 
     image = ImageOps.exif_transpose(image).convert("RGB")
+    # Small photos are upscaled to the minimum analyzable size rather than
+    # rejected, so low-resolution uploads (e.g. cropped screenshots) still work.
+    # Genuine low resolution is surfaced as a soft "low_resolution" quality
+    # warning by assess_quality (which uses the *original* size).
+    image = _upscale_to_minimum(image)
     image = _resize_long_edge(image, MAX_LONG_EDGE)
     rgb = np.asarray(image, dtype=np.uint8)
     quality = assess_quality(rgb, original_size)
@@ -112,10 +116,24 @@ def _decode_image(image_bytes: bytes, content_type: Optional[str]) -> Image.Imag
     return image
 
 
-def _validate_dimensions(size: Tuple[int, int]) -> None:
-    width, height = size
-    if min(width, height) < MIN_SHORT_EDGE or max(width, height) < MIN_LONG_EDGE:
-        raise InvalidImageError("too_small", "Image dimensions are below the minimum supported size.")
+def _upscale_to_minimum(image: Image.Image) -> Image.Image:
+    """Enlarge images below the minimum analyzable size, preserving aspect ratio.
+
+    Scales up so the long edge is at least MIN_LONG_EDGE and the short edge is at
+    least MIN_SHORT_EDGE. Images already large enough are returned unchanged.
+    """
+    width, height = image.size
+    long_edge = max(width, height)
+    short_edge = min(width, height)
+    if long_edge <= 0 or short_edge <= 0:
+        return image
+    scale_long = MIN_LONG_EDGE / long_edge if long_edge < MIN_LONG_EDGE else 1.0
+    scale_short = MIN_SHORT_EDGE / short_edge if short_edge < MIN_SHORT_EDGE else 1.0
+    scale = max(scale_long, scale_short)
+    if scale <= 1.0:
+        return image
+    new_size = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
+    return image.resize(new_size, Image.Resampling.LANCZOS)
 
 
 def _resize_long_edge(image: Image.Image, max_long_edge: int) -> Image.Image:

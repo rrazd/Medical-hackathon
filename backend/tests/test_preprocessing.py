@@ -4,7 +4,13 @@ import numpy as np
 import pytest
 from PIL import Image, ImageFilter
 
-from app.services.preprocessing import MAX_UPLOAD_BYTES, InvalidImageError, preprocess_image
+from app.services.preprocessing import (
+    MAX_UPLOAD_BYTES,
+    MIN_LONG_EDGE,
+    MIN_SHORT_EDGE,
+    InvalidImageError,
+    preprocess_image,
+)
 
 
 def _image_bytes(image, fmt="PNG", orientation=None):
@@ -50,20 +56,32 @@ def test_decodes_jpeg_and_png_to_deterministic_rgb_float_array():
         assert result.quality.exposure_mean == pytest.approx(0.54, abs=0.05)
 
 
-def test_rejects_empty_invalid_oversize_unsupported_and_too_small_images():
+def test_rejects_empty_invalid_oversize_unsupported_and_bad_format_images():
     cases = [
         (b"", None, "empty"),
         (b"not an image", None, "invalid_bytes"),
         (b"0" * (MAX_UPLOAD_BYTES + 1), None, "too_large"),
         (_image_bytes(_solid(), fmt="PNG"), "text/plain", "unsupported_content_type"),
         (_image_bytes(_solid(), fmt="GIF"), "image/png", "unsupported_format"),
-        (_image_bytes(_solid((255, 512)), fmt="PNG"), "image/png", "too_small"),
     ]
 
     for payload, content_type, code in cases:
         with pytest.raises(InvalidImageError) as error:
             preprocess_image(payload, content_type=content_type)
         assert error.value.code == code
+
+
+def test_upscales_small_images_to_minimum_analyzable_size():
+    result = preprocess_image(
+        _image_bytes(_gradient((120, 90)), fmt="PNG"), content_type="image/png"
+    )
+
+    # Original size is preserved for reporting; processed size is enlarged so the
+    # long edge >= 512 and the short edge >= 256, with the low-res warning raised.
+    assert result.original_size == (120, 90)
+    assert max(result.processed_size) >= MIN_LONG_EDGE
+    assert min(result.processed_size) >= MIN_SHORT_EDGE
+    assert "low_resolution" in result.quality.warnings
 
 
 def test_applies_exif_orientation_before_resize_and_preserves_aspect_ratio():

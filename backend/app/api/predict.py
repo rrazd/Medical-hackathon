@@ -5,11 +5,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.schemas.predict import PredictResponse
 from app.services.image_dataset import ImageDatasetError, ImageReferenceRepository
 from app.services.image_predict import build_predict_response
-from app.services.preprocessing import (
-    MIN_LONG_EDGE,
-    MIN_SHORT_EDGE,
-    InvalidImageError,
-)
+from app.services.preprocessing import InvalidImageError
 
 router = APIRouter(prefix="/api", tags=["predict"])
 
@@ -50,15 +46,10 @@ async def predict(
         repository = get_repository()
         return build_predict_response(image_bytes, age, repository, daily_routine=daily_routine)
     except InvalidImageError as exc:
-        if exc.code == "too_small":
-            detail = (
-                "That image is too small to analyze. Please upload a clearer photo at "
-                f"least {MIN_LONG_EDGE}px on its longest side (and {MIN_SHORT_EDGE}px on "
-                "the shortest)."
-            )
-        else:
-            detail = f"That image could not be analyzed: {exc}"
-        raise HTTPException(status_code=400, detail=detail) from exc
+        raise HTTPException(
+            status_code=400,
+            detail=f"That image could not be analyzed: {exc}",
+        ) from exc
     except ImageDatasetError as exc:
         raise HTTPException(
             status_code=503,
