@@ -7,9 +7,11 @@ distance-weighted average of the improvement scores of the most similar cases.
 
 from __future__ import annotations
 
+import json
 import math
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from app.schemas.predict import (
@@ -329,6 +331,30 @@ def _confidence_label(best_similarity: float, count: int) -> str:
 # toward whichever biologic has the tighter reference cluster (a higher neighbor
 # mean) regardless of the patient — so a density-invariant nearest-neighbor score
 # is used instead, letting the patient's own features decide the winner.
+#
+# Even nearest-neighbor similarity is not directly comparable between the two
+# cohorts: over the distribution of real uploads one biologic scores higher purely
+# as a dataset artifact. A small per-biologic calibration offset (precomputed by
+# scripts/build_calibration.py over a large sample of diverse synthetic photos, and
+# stored in data/calibration.json) shifts both biologics to a shared mean so a
+# typical upload scores them equally and the patient's own biomarkers decide.
+_CALIBRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "calibration.json"
+)
+
+
+def _load_calibration_offsets() -> Dict[str, float]:
+    try:
+        payload = json.loads(_CALIBRATION_PATH.read_text(encoding="utf-8"))
+        offsets = payload.get("offsets", {})
+        return {biologic: float(offsets.get(biologic, 0.0)) for biologic in BIOLOGICS}
+    except (OSError, ValueError, TypeError):
+        # No calibration artifact (e.g. tests / fresh dataset): fall back to raw
+        # nearest-neighbor scoring rather than failing.
+        return {biologic: 0.0 for biologic in BIOLOGICS}
+
+
+_CALIBRATION_OFFSETS = _load_calibration_offsets()
 
 
 def _likelihood_for_biologic(
@@ -349,7 +375,11 @@ def _likelihood_for_biologic(
         )
 
     best_similarity = matches[0].similarity
-    match_score = best_similarity
+    # Cap below 1.0 so no result reads as a literal "100% likelihood of improvement"
+    # (medical-safety: the tool is decision-support, not a guarantee).
+    match_score = min(
+        0.99, max(0.0, best_similarity + _CALIBRATION_OFFSETS.get(biologic, 0.0))
+    )
     return BiologicLikelihood(
         biologic=biologic,
         likelihood_pct=round(match_score * 100, 1),

@@ -1,0 +1,12 @@
+{
+  "offsets": {
+    "Dupixent": -0.051722,
+    "Ebglyss": 0.051722
+  },
+  "sample_size": 200,
+  "seed": 42,
+  "mean_similarity": {
+    "Dupixent": 0.81612,
+    "Ebglyss": 0.712675
+  }
+}
