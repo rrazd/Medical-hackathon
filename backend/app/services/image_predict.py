@@ -7,7 +7,6 @@ distance-weighted average of the improvement scores of the most similar cases.
 
 from __future__ import annotations
 
-import itertools
 import math
 import uuid
 from dataclasses import dataclass
@@ -324,79 +323,17 @@ def _confidence_label(best_similarity: float, count: int) -> str:
     return "low match confidence (small reference set)"
 
 
-# The single closest case dominates so an (near-)exact photo match recommends the
-# biologic that case actually cleared on; remaining neighbors nuance the score.
-BEST_MATCH_WEIGHT = 0.7
-MEAN_MATCH_WEIGHT = 0.3
-
-
-def _raw_match_score(biologic: str, scored: List[_ScoredCase]) -> Optional[float]:
-    matches = [item for item in scored if item.case.biologic == biologic][
-        :TOP_K_NEIGHBORS
-    ]
-    if not matches:
-        return None
-    best_similarity = matches[0].similarity
-    mean_similarity = sum(item.similarity for item in matches) / len(matches)
-    return BEST_MATCH_WEIGHT * best_similarity + MEAN_MATCH_WEIGHT * mean_similarity
-
-
-_CALIBRATION_CACHE: Dict[int, Dict[str, float]] = {}
-
-
-def _calibration_offsets(cases: List[ImageReferenceCase]) -> Dict[str, float]:
-    """Additive per-biologic offsets that remove any structural head-start.
-
-    The reference dataset is not guaranteed to be balanced in feature space — one
-    biologic's cases may sit closer to the "center" of plausible uploads than the
-    other's, so an arbitrary photo would score higher for it regardless of the
-    patient's actual skin. We correct this by sweeping a deterministic grid of
-    synthetic patients that spans the plausible biomarker space, measuring each
-    biologic's average base score over that grid, and shifting both biologics to
-    their shared mean. After calibration a neutral upload scores the two biologics
-    equally, so the photo's real biomarkers and the intake answers — not a dataset
-    artifact — decide the pick.
-    """
-    cache_key = id(cases)
-    cached = _CALIBRATION_CACHE.get(cache_key)
-    if cached is not None:
-        return cached
-    totals: Dict[str, float] = {biologic: 0.0 for biologic in BIOLOGICS}
-    counts: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
-    # Sweep each biomarker across low/mid/high levels; the product of these levels
-    # is a deterministic, evenly spread sample of the space of plausible uploads.
-    levels = (0.15, 0.35, 0.5, 0.65, 0.85)
-    for combo in itertools.product(levels, repeat=len(BIOMARKER_FIELDS)):
-        values = {}
-        for field, level in zip(BIOMARKER_FIELDS, combo):
-            values[field] = level * 100.0 if field.endswith("_pct") else level
-        synthetic = PatientFeatures(**values)
-        scored = _score_cases(synthetic, 40, cases)
-        for biologic in BIOLOGICS:
-            raw = _raw_match_score(biologic, scored)
-            if raw is not None:
-                totals[biologic] += raw
-                counts[biologic] += 1
-    expected = {
-        biologic: (totals[biologic] / counts[biologic])
-        for biologic in BIOLOGICS
-        if counts[biologic] > 0
-    }
-    if len(expected) < 2:
-        return {biologic: 0.0 for biologic in BIOLOGICS}
-    grand_mean = sum(expected.values()) / len(expected)
-    offsets = {
-        biologic: grand_mean - expected.get(biologic, grand_mean)
-        for biologic in BIOLOGICS
-    }
-    _CALIBRATION_CACHE[cache_key] = offsets
-    return offsets
+# The recommendation is grounded in the single most similar reference patient for
+# each biologic: "how closely does your skin match the closest patient who cleared
+# on this drug?". Averaging over several neighbors was tried but biased the result
+# toward whichever biologic has the tighter reference cluster (a higher neighbor
+# mean) regardless of the patient — so a density-invariant nearest-neighbor score
+# is used instead, letting the patient's own features decide the winner.
 
 
 def _likelihood_for_biologic(
     biologic: str,
     scored: List[_ScoredCase],
-    calibration: Optional[Dict[str, float]] = None,
 ) -> BiologicLikelihood:
     matches = [item for item in scored if item.case.biologic == biologic][
         :TOP_K_NEIGHBORS
@@ -412,10 +349,7 @@ def _likelihood_for_biologic(
         )
 
     best_similarity = matches[0].similarity
-    mean_similarity = sum(item.similarity for item in matches) / len(matches)
-    match_score = BEST_MATCH_WEIGHT * best_similarity + MEAN_MATCH_WEIGHT * mean_similarity
-    if calibration:
-        match_score = min(1.0, max(0.0, match_score + calibration.get(biologic, 0.0)))
+    match_score = best_similarity
     return BiologicLikelihood(
         biologic=biologic,
         likelihood_pct=round(match_score * 100, 1),
@@ -756,10 +690,8 @@ def build_predict_response(
     patient_features, quality = extract_biomarkers(image_bytes)
     scored = _score_cases(patient_features, age, cases)
 
-    calibration = _calibration_offsets(cases)
     likelihoods = [
-        _likelihood_for_biologic(biologic, scored, calibration)
-        for biologic in BIOLOGICS
+        _likelihood_for_biologic(biologic, scored) for biologic in BIOLOGICS
     ]
     matched_patients = _matched_patients(scored)
 
