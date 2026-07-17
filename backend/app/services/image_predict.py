@@ -443,17 +443,110 @@ def _find_exact_match(
     return best
 
 
+def _join_labels(labels: List[str]) -> str:
+    if not labels:
+        return ""
+    if len(labels) == 1:
+        return labels[0]
+    if len(labels) == 2:
+        return f"{labels[0]} and {labels[1]}"
+    return f"{', '.join(labels[:-1])}, and {labels[-1]}"
+
+
+def _biomarker_differentiators(
+    recommended: str, other: str, scored: List[_ScoredCase]
+) -> List[Tuple[str, float]]:
+    """Rank biomarkers by how much they pull the match toward `recommended` vs `other`.
+
+    For each biomarker we compare the patient's average (weighted) distance to the
+    recommended biologic's closest cases against the other biologic's closest cases.
+    A positive value means the patient's skin on that feature looks more like the
+    recommended cohort (a driver of the pick); negative means it leans to the other.
+    """
+
+    def top_matches(biologic: str) -> List[_ScoredCase]:
+        return [m for m in scored if m.case.biologic == biologic][:TOP_K_NEIGHBORS]
+
+    rec_matches = top_matches(recommended)
+    oth_matches = top_matches(other)
+    if not rec_matches or not oth_matches:
+        return []
+
+    ranked: List[Tuple[str, float]] = []
+    for field in BIOMARKER_FIELDS:
+        rec_d = [m.distances[field] for m in rec_matches if field in m.distances]
+        oth_d = [m.distances[field] for m in oth_matches if field in m.distances]
+        if not rec_d or not oth_d:
+            continue
+        rec_mean = sum(rec_d) / len(rec_d)
+        oth_mean = sum(oth_d) / len(oth_d)
+        weighted_pull = (oth_mean - rec_mean) * MATCH_WEIGHTS.get(field, 0.0)
+        ranked.append((BIOMARKER_LABELS.get(field, field), weighted_pull))
+    ranked.sort(key=lambda pair: pair[1], reverse=True)
+    return ranked
+
+
+def _recommendation_rationale(
+    best: BiologicLikelihood,
+    other: BiologicLikelihood,
+    scored: List[_ScoredCase],
+    comorbidity_label: Optional[str],
+) -> str:
+    diffs = _biomarker_differentiators(best.biologic, other.biologic, scored)
+    drivers = [label for label, val in diffs if val > 1e-4]
+    against = [label for label, val in diffs if val < -1e-4]
+    net = sum(val for _, val in diffs)
+    margin = round(best.likelihood_pct - other.likelihood_pct, 1)
+
+    # Comorbidity was the deciding factor: biomarkers alone don't favor the pick.
+    if comorbidity_label and net <= 1e-4:
+        return (
+            f"On skin biomarkers alone, your matches for {best.biologic} and "
+            f"{other.biologic} are nearly even. Because you reported {comorbidity_label} "
+            f"— which {best.biologic} is also approved to treat — it becomes the better "
+            f"overall fit for you."
+        )
+
+    if not drivers:
+        return (
+            f"{best.biologic} and {other.biologic} are almost tied ("
+            f"{best.likelihood_pct:g}% vs {other.likelihood_pct:g}%); your skin resembles "
+            f"successful patients from both groups about equally, so this is a close call "
+            f"to discuss with your dermatologist."
+        )
+
+    driver_text = _join_labels(drivers[:2])
+    sentence = (
+        f"Your {driver_text} most closely resemble reference patients who cleared on "
+        f"{best.biologic} rather than {other.biologic}"
+    )
+    if against:
+        sentence += f", even though your {against[0]} leans slightly toward {other.biologic}"
+    margin_text = f"a {margin:g}-point edge" if margin > 0 else "a razor-thin edge"
+    sentence += (
+        f" — giving {best.biologic} {margin_text} "
+        f"({best.likelihood_pct:g}% vs {other.likelihood_pct:g}%)."
+    )
+    if comorbidity_label:
+        sentence += (
+            f" Your reported {comorbidity_label} further supports {best.biologic}, which "
+            f"is also approved to treat it."
+        )
+    return sentence
+
+
 def _explanation(
     patient: PatientFeatures,
     likelihoods: List[BiologicLikelihood],
     total_cases: int,
     exact: Optional[ExactMatch],
+    scored: List[_ScoredCase],
     lifestyle_considerations: Optional[List[str]] = None,
+    comorbidity_label: Optional[str] = None,
 ) -> Explanation:
     ranked = sorted(likelihoods, key=lambda item: item.likelihood_pct, reverse=True)
     best = ranked[0]
     top_biomarkers = _top_biomarkers(patient)
-    lead_biomarker = top_biomarkers[0].label.lower() if top_biomarkers else "visual biomarkers"
 
     if exact is not None:
         summary = (
@@ -474,14 +567,8 @@ def _explanation(
         )
         rationale = None
         if len(ranked) > 1:
-            other = ranked[1]
-            margin = round(best.likelihood_pct - other.likelihood_pct, 1)
-            margin_text = f"{margin:g}-point" if margin > 0 else "narrow"
-            rationale = (
-                f"{best.biologic} edges out {other.biologic} ({best.likelihood_pct:g}% vs "
-                f"{other.likelihood_pct:g}%, a {margin_text} margin) because your closest "
-                f"reference matches — driven mainly by your {lead_biomarker} — are patients "
-                f"who cleared on {best.biologic} rather than {other.biologic}."
+            rationale = _recommendation_rationale(
+                best, ranked[1], scored, comorbidity_label
             )
 
     return Explanation(
@@ -512,6 +599,9 @@ def build_predict_response(
     )
     considerations = comorbidity_considerations + lifestyle_considerations
     nudges = _merge_nudges(lifestyle_nudges, comorbidity_nudges)
+    comorbidity_label = _COMORBIDITY_LABELS.get(
+        (atopic_comorbidities or "").strip().lower()
+    )
 
     exact: Optional[ExactMatch] = None
     exact_hit = _find_exact_match(image_bytes, cases)
@@ -563,7 +653,9 @@ def build_predict_response(
             likelihoods,
             len(cases),
             exact,
-            considerations,
+            scored,
+            lifestyle_considerations=considerations,
+            comorbidity_label=comorbidity_label,
         ),
         heatmap=Heatmap(
             overlay_url=None,
