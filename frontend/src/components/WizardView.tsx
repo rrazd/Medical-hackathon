@@ -22,7 +22,10 @@ const emptyDefaults: IntakeFormValues = {
   body_area: '',
   eczema_duration: '',
   itch_severity: '',
-  prior_treatments: '',
+  atopic_comorbidities: '',
+  tried_biologics: '',
+  biologics_stopped_reason: '',
+  nonbiologic_treatments: '',
   daily_routine: '',
 };
 
@@ -57,7 +60,10 @@ const fieldLabels: Record<keyof IntakeFormValues, string> = {
   body_area: 'Body area',
   eczema_duration: 'Eczema duration',
   itch_severity: 'Itch severity',
-  prior_treatments: 'Prior treatments',
+  atopic_comorbidities: 'Asthma / hay fever',
+  tried_biologics: 'Tried biologics before',
+  biologics_stopped_reason: 'Why you stopped biologics',
+  nonbiologic_treatments: 'Non-biologic treatment history',
   daily_routine: 'Your typical day',
 };
 
@@ -365,7 +371,7 @@ export function WizardView({
           <div className="wizard-step">
             <h3>Tell us about you</h3>
             <p className="hint">These details help match you with similar reference cases.</p>
-            <IntakeFields register={register} errors={errors} />
+            <IntakeFields register={register} errors={errors} triedBiologics={watch('tried_biologics')} />
           </div>
         )}
 

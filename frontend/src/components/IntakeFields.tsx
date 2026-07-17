@@ -5,6 +5,7 @@ import type { IntakeFormValues } from '../types/intake';
 type IntakeFieldsProps = {
   register: UseFormRegister<IntakeFormValues>;
   errors: FieldErrors<IntakeFormValues>;
+  triedBiologics?: string;
 };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -16,7 +17,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-export function IntakeFields({ register, errors }: IntakeFieldsProps) {
+export function IntakeFields({ register, errors, triedBiologics }: IntakeFieldsProps) {
   return (
     <fieldset>
       <div className="form-grid">
@@ -51,11 +52,19 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
 
         <label>
           Race/Ethnicity
-          <input
+          <select
             aria-invalid={Boolean(errors.race_ethnicity)}
             aria-describedby={errors.race_ethnicity ? 'race-ethnicity-error' : undefined}
             {...register('race_ethnicity')}
-          />
+          >
+            <option value="">Select race/ethnicity</option>
+            <option value="asian">Asian</option>
+            <option value="black">Black</option>
+            <option value="hispanic-latino">Hispanic or Latino</option>
+            <option value="white">White</option>
+            <option value="other">Other</option>
+            <option value="prefer-not-to-say">Prefer not to say</option>
+          </select>
           <FieldError id="race-ethnicity-error" message={errors.race_ethnicity?.message} />
         </label>
 
@@ -103,6 +112,53 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
           <FieldError id="itch-severity-error" message={errors.itch_severity?.message} />
         </label>
 
+        <label>
+          Do you have asthma or hay fever?
+          <select
+            aria-invalid={Boolean(errors.atopic_comorbidities)}
+            aria-describedby={errors.atopic_comorbidities ? 'atopic-comorbidities-error' : undefined}
+            {...register('atopic_comorbidities')}
+          >
+            <option value="">Select an option</option>
+            <option value="none">No</option>
+            <option value="asthma">Yes — asthma</option>
+            <option value="hay-fever">Yes — hay fever (allergic rhinitis)</option>
+            <option value="both">Yes — both</option>
+          </select>
+          <FieldError id="atopic-comorbidities-error" message={errors.atopic_comorbidities?.message} />
+        </label>
+
+        <label>
+          Have you tried biologics before?
+          <select
+            aria-invalid={Boolean(errors.tried_biologics)}
+            aria-describedby={errors.tried_biologics ? 'tried-biologics-error' : undefined}
+            {...register('tried_biologics')}
+          >
+            <option value="">Select an option</option>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+          <FieldError id="tried-biologics-error" message={errors.tried_biologics?.message} />
+        </label>
+
+        {triedBiologics === 'yes' && (
+          <label className="field-span-2">
+            <span className="field-label-row">Why did you stop your previous biologic?</span>
+            <textarea
+              rows={3}
+              placeholder="e.g. It stopped working after a year, or I had side effects like eye irritation."
+              aria-invalid={Boolean(errors.biologics_stopped_reason)}
+              aria-describedby={errors.biologics_stopped_reason ? 'biologics-stopped-reason-error' : undefined}
+              {...register('biologics_stopped_reason')}
+            />
+            <FieldError
+              id="biologics-stopped-reason-error"
+              message={errors.biologics_stopped_reason?.message}
+            />
+          </label>
+        )}
+
         <label className="field-span-2">
           <span className="field-label-row">Tell us about your typical day</span>
           <span className="field-help">
@@ -120,18 +176,18 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
         </label>
 
         <label className="field-span-2">
-          <span className="field-label-row">Prior treatments</span>
+          <span className="field-label-row">Other (non-biologic) treatment history</span>
           <span className="field-help">
-            Any creams, pills, biologics, or therapies you've already tried for your skin.
+            Creams, pills, phototherapy, or other non-biologic therapies you've tried for your skin.
           </span>
           <textarea
             rows={3}
             placeholder="e.g. Topical steroids, then methotrexate for 6 months."
-            aria-invalid={Boolean(errors.prior_treatments)}
-            aria-describedby={errors.prior_treatments ? 'prior-treatments-error' : undefined}
-            {...register('prior_treatments')}
+            aria-invalid={Boolean(errors.nonbiologic_treatments)}
+            aria-describedby={errors.nonbiologic_treatments ? 'nonbiologic-treatments-error' : undefined}
+            {...register('nonbiologic_treatments')}
           />
-          <FieldError id="prior-treatments-error" message={errors.prior_treatments?.message} />
+          <FieldError id="nonbiologic-treatments-error" message={errors.nonbiologic_treatments?.message} />
         </label>
       </div>
     </fieldset>

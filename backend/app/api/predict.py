@@ -25,7 +25,10 @@ async def predict(
     body_area: str = Form(...),
     eczema_duration: str = Form(...),
     itch_severity: str = Form(...),
-    prior_treatments: str = Form(...),
+    atopic_comorbidities: str = Form(...),
+    tried_biologics: str = Form(...),
+    biologics_stopped_reason: str = Form(""),
+    nonbiologic_treatments: str = Form(...),
     daily_routine: str = Form(...),
 ) -> PredictResponse:
     if image.content_type not in {"image/jpeg", "image/png"}:
@@ -38,11 +41,18 @@ async def predict(
         (body_area, "body_area"),
         (eczema_duration, "eczema_duration"),
         (itch_severity, "itch_severity"),
-        (prior_treatments, "prior_treatments"),
+        (atopic_comorbidities, "atopic_comorbidities"),
+        (tried_biologics, "tried_biologics"),
+        (nonbiologic_treatments, "nonbiologic_treatments"),
         (daily_routine, "daily_routine"),
     ]:
         if not value.strip():
             raise HTTPException(status_code=422, detail=f"{label} is required.")
+    if tried_biologics.strip().lower() == "yes" and not biologics_stopped_reason.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="biologics_stopped_reason is required when biologics were tried.",
+        )
 
     image_bytes = await image.read()
     if not image_bytes:
@@ -50,7 +60,13 @@ async def predict(
 
     try:
         repository = get_repository()
-        return build_predict_response(image_bytes, age, repository, daily_routine=daily_routine)
+        return build_predict_response(
+            image_bytes,
+            age,
+            repository,
+            daily_routine=daily_routine,
+            atopic_comorbidities=atopic_comorbidities,
+        )
     except InvalidImageError as exc:
         raise HTTPException(
             status_code=400,

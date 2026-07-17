@@ -14,7 +14,10 @@ const emptyDefaults: IntakeFormValues = {
   body_area: '',
   eczema_duration: '',
   itch_severity: '',
-  prior_treatments: '',
+  atopic_comorbidities: '',
+  tried_biologics: '',
+  biologics_stopped_reason: '',
+  nonbiologic_treatments: '',
   daily_routine: '',
 };
 
@@ -53,7 +56,8 @@ describe('IntakeFields', () => {
     expect(screen.getByText(/body area is required/i)).toBeInTheDocument();
     expect(screen.getByText(/eczema duration is required/i)).toBeInTheDocument();
     expect(screen.getByText(/itch severity is required/i)).toBeInTheDocument();
-    expect(screen.getByText(/prior treatments is required/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/this answer is required/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/treatment history is required/i)).toBeInTheDocument();
     expect(screen.getByText(/your typical day is required/i)).toBeInTheDocument();
   });
 
@@ -64,7 +68,7 @@ describe('IntakeFields', () => {
 
     await user.type(screen.getByLabelText(/^age$/i), '36');
     await user.selectOptions(screen.getByLabelText(/^sex$/i), 'female');
-    await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
+    await user.selectOptions(screen.getByLabelText(/race\/ethnicity/i), 'hispanic-latino');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.selectOptions(
       screen.getByLabelText(/how long have you had eczema/i),
@@ -74,8 +78,13 @@ describe('IntakeFields', () => {
       screen.getByLabelText(/rate the severity of your itch/i),
       'moderate',
     );
+    await user.selectOptions(screen.getByLabelText(/asthma or hay fever/i), 'none');
+    await user.selectOptions(screen.getByLabelText(/tried biologics before/i), 'no');
     await user.type(screen.getByLabelText(/typical day/i), 'desk work and evening runs');
-    await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
+    await user.type(
+      screen.getByLabelText(/non-biologic.*treatment history/i),
+      'topical steroids',
+    );
     await user.click(screen.getByRole('button', { name: /submit intake/i }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -83,11 +92,14 @@ describe('IntakeFields', () => {
       {
         age: 36,
         sex: 'female',
-        race_ethnicity: 'Latina',
+        race_ethnicity: 'hispanic-latino',
         body_area: 'forearms',
         eczema_duration: '1-3 years',
         itch_severity: 'moderate',
-        prior_treatments: 'topical steroids',
+        atopic_comorbidities: 'none',
+        tried_biologics: 'no',
+        biologics_stopped_reason: '',
+        nonbiologic_treatments: 'topical steroids',
         daily_routine: 'desk work and evening runs',
       },
       expect.anything(),

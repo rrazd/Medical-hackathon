@@ -1554,7 +1554,7 @@ button.tertiary:focus-visible {
 
 .field-error {
   color: var(--rose-700);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 600;
   position: absolute;
   top: 100%;
@@ -1562,6 +1562,13 @@ button.tertiary:focus-visible {
   right: 0;
   margin-top: 4px;
   line-height: 1.2;
+}
+
+/* Full-width textarea fields have room below, so keep their errors in-flow
+   (with breathing room) rather than absolutely positioned against the edge. */
+.field-span-2 .field-error {
+  position: static;
+  margin-top: var(--sp-1);
 }
 
 /* ============================================================

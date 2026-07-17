@@ -81,7 +81,10 @@ export async function predict(values: IntakeFormValues, image: File): Promise<Pr
   body.append('body_area', values.body_area);
   body.append('eczema_duration', values.eczema_duration);
   body.append('itch_severity', values.itch_severity);
-  body.append('prior_treatments', values.prior_treatments ?? '');
+  body.append('atopic_comorbidities', values.atopic_comorbidities);
+  body.append('tried_biologics', values.tried_biologics);
+  body.append('biologics_stopped_reason', values.biologics_stopped_reason ?? '');
+  body.append('nonbiologic_treatments', values.nonbiologic_treatments);
   body.append('daily_routine', values.daily_routine ?? '');
 
   const response = await fetch('/api/predict', { method: 'POST', body });

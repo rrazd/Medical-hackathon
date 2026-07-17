@@ -131,7 +131,10 @@ describe('App', () => {
 
     await user.type(screen.getByRole('spinbutton', { name: /age/i }), '36');
     await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
-    await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /race\/ethnicity/i }),
+      'hispanic-latino',
+    );
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.selectOptions(
       screen.getByRole('combobox', { name: /how long have you had eczema/i }),
@@ -141,8 +144,19 @@ describe('App', () => {
       screen.getByRole('combobox', { name: /rate the severity of your itch/i }),
       'moderate',
     );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /asthma or hay fever/i }),
+      'asthma',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /tried biologics before/i }),
+      'no',
+    );
     await user.type(screen.getByLabelText(/typical day/i), 'desk work and evening runs');
-    await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
+    await user.type(
+      screen.getByLabelText(/non-biologic.*treatment history/i),
+      'topical steroids',
+    );
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     // Step 3 — review, then run the estimate.
@@ -157,11 +171,13 @@ describe('App', () => {
     expect(formData.get('image')).toBe(image);
     expect(formData.get('age')).toBe('36');
     expect(formData.get('sex')).toBe('female');
-    expect(formData.get('race_ethnicity')).toBe('Latina');
+    expect(formData.get('race_ethnicity')).toBe('hispanic-latino');
     expect(formData.get('body_area')).toBe('forearms');
     expect(formData.get('eczema_duration')).toBe('1-3 years');
     expect(formData.get('itch_severity')).toBe('moderate');
-    expect(formData.get('prior_treatments')).toBe('topical steroids');
+    expect(formData.get('atopic_comorbidities')).toBe('asthma');
+    expect(formData.get('tried_biologics')).toBe('no');
+    expect(formData.get('nonbiologic_treatments')).toBe('topical steroids');
   });
 
   it('clears step 2 intake when starting over', async () => {
@@ -185,7 +201,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.type(screen.getByRole('spinbutton', { name: /age/i }), '36');
     await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
-    await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /race\/ethnicity/i }),
+      'hispanic-latino',
+    );
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.selectOptions(
       screen.getByRole('combobox', { name: /how long have you had eczema/i }),
@@ -195,8 +214,19 @@ describe('App', () => {
       screen.getByRole('combobox', { name: /rate the severity of your itch/i }),
       'moderate',
     );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /asthma or hay fever/i }),
+      'none',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /tried biologics before/i }),
+      'no',
+    );
     await user.type(screen.getByLabelText(/typical day/i), 'desk work and evening runs');
-    await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
+    await user.type(
+      screen.getByLabelText(/non-biologic.*treatment history/i),
+      'topical steroids',
+    );
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /estimate response/i }));
 
@@ -206,7 +236,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByRole('spinbutton', { name: /age/i })).toHaveValue(null);
-    expect(screen.getByLabelText(/race\/ethnicity/i)).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /race\/ethnicity/i })).toHaveValue('');
     expect(screen.getByLabelText(/body area/i)).toHaveValue('');
     expect(screen.getByRole('combobox', { name: /sex/i })).toHaveValue('');
   });
@@ -228,7 +258,7 @@ describe('App', () => {
 
     expect(screen.getByRole('spinbutton', { name: /age/i })).toHaveValue(null);
     expect(screen.getByRole('combobox', { name: /sex/i })).toHaveValue('');
-    expect(screen.getByLabelText(/race\/ethnicity/i)).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /race\/ethnicity/i })).toHaveValue('');
     expect(screen.getByLabelText(/body area/i)).toHaveValue('');
   });
 });

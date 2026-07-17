@@ -180,8 +180,8 @@ def _apply_lifestyle_nudges(
                     update={
                         "likelihood_pct": new_pct,
                         "caveat": (
-                            f"{item.caveat} Adjusted for lifestyle fit "
-                            f"(+{delta} for dosing-convenience considerations)."
+                            f"{item.caveat} Adjusted for lifestyle and comorbidity "
+                            f"fit (+{delta})."
                         ),
                     }
                 )
@@ -189,6 +189,48 @@ def _apply_lifestyle_nudges(
         else:
             adjusted.append(item)
     return adjusted
+
+
+# Dupixent (dupilumab) is FDA-approved not only for atopic dermatitis but also for
+# asthma and chronic rhinosinusitis (which underlies allergic-rhinitis / "hay fever"
+# type disease). Ebglyss (lebrikizumab) is currently approved for atopic dermatitis
+# only. A patient with these atopic comorbidities may therefore favor Dupixent, since
+# a single biologic could address more than their skin. This is a treatment-selection
+# consideration to raise with a clinician — not an efficacy guarantee.
+COMORBIDITY_NUDGE_POINTS = 6
+
+_COMORBIDITY_LABELS: Dict[str, str] = {
+    "asthma": "asthma",
+    "hay-fever": "hay fever (allergic rhinitis)",
+    "both": "asthma and hay fever",
+}
+
+
+def _analyze_comorbidities(
+    atopic_comorbidities: str,
+) -> Tuple[Dict[str, int], List[str]]:
+    """Map reported asthma / hay-fever comorbidity to a Dupixent nudge + note."""
+    nudges: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
+    considerations: List[str] = []
+    value = (atopic_comorbidities or "").strip().lower()
+    if value not in _COMORBIDITY_LABELS:
+        return nudges, considerations
+    nudges["Dupixent"] = COMORBIDITY_NUDGE_POINTS
+    label = _COMORBIDITY_LABELS[value]
+    considerations.append(
+        f"You reported {label}. Dupixent is also FDA-approved for these atopic "
+        f"conditions, so one biologic could treat more than your skin — worth raising "
+        f"with your dermatologist. Ebglyss is currently approved for eczema only."
+    )
+    return nudges, considerations
+
+
+def _merge_nudges(*nudge_maps: Dict[str, int]) -> Dict[str, int]:
+    merged: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
+    for nudge_map in nudge_maps:
+        for biologic, delta in nudge_map.items():
+            merged[biologic] = merged.get(biologic, 0) + delta
+    return merged
 
 
 @dataclass(frozen=True)
@@ -455,6 +497,7 @@ def build_predict_response(
     age: int,
     repository: ImageReferenceRepository,
     daily_routine: str = "",
+    atopic_comorbidities: str = "",
 ) -> PredictResponse:
     cases = repository.list_cases()
     patient_features, quality = extract_biomarkers(image_bytes)
@@ -464,6 +507,11 @@ def build_predict_response(
     matched_patients = _matched_patients(scored)
 
     lifestyle_nudges, lifestyle_considerations = _analyze_lifestyle(daily_routine)
+    comorbidity_nudges, comorbidity_considerations = _analyze_comorbidities(
+        atopic_comorbidities
+    )
+    considerations = comorbidity_considerations + lifestyle_considerations
+    nudges = _merge_nudges(lifestyle_nudges, comorbidity_nudges)
 
     exact: Optional[ExactMatch] = None
     exact_hit = _find_exact_match(image_bytes, cases)
@@ -495,9 +543,9 @@ def build_predict_response(
             for item in likelihoods
         ]
     else:
-        # Lifestyle only nudges the recommendation when there is no exact image match
-        # (an exact match is a far stronger, image-grounded signal).
-        likelihoods = _apply_lifestyle_nudges(likelihoods, lifestyle_nudges)
+        # Lifestyle & comorbidity only nudge the recommendation when there is no exact
+        # image match (an exact match is a far stronger, image-grounded signal).
+        likelihoods = _apply_lifestyle_nudges(likelihoods, nudges)
 
     warnings: List[str] = list(quality.warnings)
     if len(cases) < 10:
@@ -515,7 +563,7 @@ def build_predict_response(
             likelihoods,
             len(cases),
             exact,
-            lifestyle_considerations,
+            considerations,
         ),
         heatmap=Heatmap(
             overlay_url=None,
