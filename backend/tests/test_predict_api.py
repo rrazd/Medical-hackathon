@@ -20,7 +20,10 @@ def _intake_form() -> dict:
         "sex": "female",
         "race_ethnicity": "Latina",
         "body_area": "forearms",
+        "eczema_duration": "1-3 years",
+        "itch_severity": "moderate",
         "prior_treatments": "topical steroids, moisturizer",
+        "daily_routine": "desk work and evening runs",
     }
 
 

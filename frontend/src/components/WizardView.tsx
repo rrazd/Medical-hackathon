@@ -20,6 +20,8 @@ const emptyDefaults: IntakeFormValues = {
   sex: '',
   race_ethnicity: '',
   body_area: '',
+  eczema_duration: '',
+  itch_severity: '',
   prior_treatments: '',
   daily_routine: '',
 };
@@ -53,6 +55,8 @@ const fieldLabels: Record<keyof IntakeFormValues, string> = {
   sex: 'Sex',
   race_ethnicity: 'Race/Ethnicity',
   body_area: 'Body area',
+  eczema_duration: 'Eczema duration',
+  itch_severity: 'Itch severity',
   prior_treatments: 'Prior treatments',
   daily_routine: 'Your typical day',
 };

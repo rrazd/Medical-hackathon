@@ -14,8 +14,10 @@ export const intakeSchema = z.object({
   sex: requiredText('Sex'),
   race_ethnicity: requiredText('Race/ethnicity'),
   body_area: requiredText('Body area'),
-  prior_treatments: z.string().trim().optional(),
-  daily_routine: z.string().trim().optional(),
+  eczema_duration: requiredText('Eczema duration'),
+  itch_severity: requiredText('Itch severity'),
+  prior_treatments: requiredText('Prior treatments'),
+  daily_routine: requiredText('Your typical day'),
 });
 
 export type IntakeFormValues = z.infer<typeof intakeSchema>;

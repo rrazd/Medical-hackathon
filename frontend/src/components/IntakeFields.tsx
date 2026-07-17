@@ -69,8 +69,42 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
           <FieldError id="body-area-error" message={errors.body_area?.message} />
         </label>
 
+        <label>
+          How long have you had eczema?
+          <select
+            aria-invalid={Boolean(errors.eczema_duration)}
+            aria-describedby={errors.eczema_duration ? 'eczema-duration-error' : undefined}
+            {...register('eczema_duration')}
+          >
+            <option value="">Select duration</option>
+            <option value="<6 months">Less than 6 months</option>
+            <option value="6-12 months">6–12 months</option>
+            <option value="1-3 years">1–3 years</option>
+            <option value="3-5 years">3–5 years</option>
+            <option value="5+ years">More than 5 years</option>
+          </select>
+          <FieldError id="eczema-duration-error" message={errors.eczema_duration?.message} />
+        </label>
+
+        <label>
+          Rate the severity of your itch
+          <select
+            aria-invalid={Boolean(errors.itch_severity)}
+            aria-describedby={errors.itch_severity ? 'itch-severity-error' : undefined}
+            {...register('itch_severity')}
+          >
+            <option value="">Select severity</option>
+            <option value="none">None</option>
+            <option value="mild">Mild</option>
+            <option value="moderate">Moderate</option>
+            <option value="severe">Severe</option>
+            <option value="very-severe">Very severe</option>
+          </select>
+          <FieldError id="itch-severity-error" message={errors.itch_severity?.message} />
+        </label>
+
         <label className="field-span-2">
-          <span className="field-label-row">Tell us about your typical day <span className="field-optional">(optional)</span></span>
+          <span className="field-label-row">Tell us about your typical day</span>
           <span className="field-help">
             A quick sketch of your routine — work, screen time, travel, exercise, kids —
             helps us weigh each biologic's dosing convenience and side-effect profile for your lifestyle.
@@ -86,7 +120,7 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
         </label>
 
         <label className="field-span-2">
-          <span className="field-label-row">Prior treatments <span className="field-optional">(optional)</span></span>
+          <span className="field-label-row">Prior treatments</span>
           <span className="field-help">
             Any creams, pills, biologics, or therapies you've already tried for your skin.
           </span>

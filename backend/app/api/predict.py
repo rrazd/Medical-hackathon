@@ -23,8 +23,10 @@ async def predict(
     sex: str = Form(...),
     race_ethnicity: str = Form(...),
     body_area: str = Form(...),
-    prior_treatments: str = Form(""),
-    daily_routine: str = Form(""),
+    eczema_duration: str = Form(...),
+    itch_severity: str = Form(...),
+    prior_treatments: str = Form(...),
+    daily_routine: str = Form(...),
 ) -> PredictResponse:
     if image.content_type not in {"image/jpeg", "image/png"}:
         raise HTTPException(status_code=400, detail="Upload must be a JPEG or PNG image.")
@@ -34,6 +36,10 @@ async def predict(
         (sex, "sex"),
         (race_ethnicity, "race_ethnicity"),
         (body_area, "body_area"),
+        (eczema_duration, "eczema_duration"),
+        (itch_severity, "itch_severity"),
+        (prior_treatments, "prior_treatments"),
+        (daily_routine, "daily_routine"),
     ]:
         if not value.strip():
             raise HTTPException(status_code=422, detail=f"{label} is required.")

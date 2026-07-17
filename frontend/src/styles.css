@@ -617,6 +617,7 @@ label {
   font-weight: 650;
   font-size: 14px;
   color: var(--ink-soft);
+  position: relative;
 }
 
 .field-label-row {
@@ -629,6 +630,7 @@ label {
 }
 
 select:invalid,
+select:has(option[value=""]:checked),
 select option[value=""] {
   color: var(--muted);
 }
@@ -1554,6 +1556,12 @@ button.tertiary:focus-visible {
   color: var(--rose-700);
   font-size: 0.85rem;
   font-weight: 600;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  line-height: 1.2;
 }
 
 /* ============================================================

@@ -133,6 +133,15 @@ describe('App', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /how long have you had eczema/i }),
+      '1-3 years',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /rate the severity of your itch/i }),
+      'moderate',
+    );
+    await user.type(screen.getByLabelText(/typical day/i), 'desk work and evening runs');
     await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
     await user.click(screen.getByRole('button', { name: /next/i }));
 
@@ -150,6 +159,8 @@ describe('App', () => {
     expect(formData.get('sex')).toBe('female');
     expect(formData.get('race_ethnicity')).toBe('Latina');
     expect(formData.get('body_area')).toBe('forearms');
+    expect(formData.get('eczema_duration')).toBe('1-3 years');
+    expect(formData.get('itch_severity')).toBe('moderate');
     expect(formData.get('prior_treatments')).toBe('topical steroids');
   });
 
@@ -176,6 +187,16 @@ describe('App', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: /sex/i }), 'female');
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /how long have you had eczema/i }),
+      '1-3 years',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /rate the severity of your itch/i }),
+      'moderate',
+    );
+    await user.type(screen.getByLabelText(/typical day/i), 'desk work and evening runs');
+    await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /estimate response/i }));
 

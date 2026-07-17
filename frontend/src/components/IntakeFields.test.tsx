@@ -12,6 +12,8 @@ const emptyDefaults: IntakeFormValues = {
   sex: '',
   race_ethnicity: '',
   body_area: '',
+  eczema_duration: '',
+  itch_severity: '',
   prior_treatments: '',
   daily_routine: '',
 };
@@ -49,7 +51,10 @@ describe('IntakeFields', () => {
     expect(screen.getByText(/sex is required/i)).toBeInTheDocument();
     expect(screen.getByText(/race\/ethnicity is required/i)).toBeInTheDocument();
     expect(screen.getByText(/body area is required/i)).toBeInTheDocument();
-    expect(screen.queryByText(/prior treatments is required/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/eczema duration is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/itch severity is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/prior treatments is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/your typical day is required/i)).toBeInTheDocument();
   });
 
   it('submits snake_case intake values that match the multipart contract', async () => {
@@ -61,6 +66,15 @@ describe('IntakeFields', () => {
     await user.selectOptions(screen.getByLabelText(/^sex$/i), 'female');
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
+    await user.selectOptions(
+      screen.getByLabelText(/how long have you had eczema/i),
+      '1-3 years',
+    );
+    await user.selectOptions(
+      screen.getByLabelText(/rate the severity of your itch/i),
+      'moderate',
+    );
+    await user.type(screen.getByLabelText(/typical day/i), 'desk work and evening runs');
     await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
     await user.click(screen.getByRole('button', { name: /submit intake/i }));
 
@@ -71,8 +85,10 @@ describe('IntakeFields', () => {
         sex: 'female',
         race_ethnicity: 'Latina',
         body_area: 'forearms',
+        eczema_duration: '1-3 years',
+        itch_severity: 'moderate',
         prior_treatments: 'topical steroids',
-        daily_routine: '',
+        daily_routine: 'desk work and evening runs',
       },
       expect.anything(),
     );
