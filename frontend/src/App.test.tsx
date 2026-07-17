@@ -135,7 +135,6 @@ describe('App', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: /fitzpatrick skin type/i }), 'IV');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
-    await user.selectOptions(screen.getByRole('combobox', { name: /baseline severity/i }), 'moderate');
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     // Step 3 — review, then run the estimate.
@@ -154,7 +153,6 @@ describe('App', () => {
     expect(formData.get('fitzpatrick_skin_type')).toBe('IV');
     expect(formData.get('body_area')).toBe('forearms');
     expect(formData.get('prior_treatments')).toBe('topical steroids');
-    expect(formData.get('baseline_severity')).toBe('moderate');
   });
 
   it('clears step 2 intake when starting over', async () => {
@@ -181,7 +179,6 @@ describe('App', () => {
     await user.type(screen.getByLabelText(/race\/ethnicity/i), 'Latina');
     await user.selectOptions(screen.getByRole('combobox', { name: /fitzpatrick skin type/i }), 'IV');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
-    await user.selectOptions(screen.getByRole('combobox', { name: /baseline severity/i }), 'moderate');
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /estimate response/i }));
 

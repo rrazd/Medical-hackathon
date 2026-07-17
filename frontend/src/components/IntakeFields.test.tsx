@@ -15,7 +15,6 @@ const emptyDefaults: IntakeFormValues = {
   body_area: '',
   prior_treatments: '',
   daily_routine: '',
-  baseline_severity: '',
 };
 
 function IntakeHarness({ onSubmit }: { onSubmit: (values: IntakeFormValues) => void }) {
@@ -53,7 +52,6 @@ describe('IntakeFields', () => {
     expect(screen.getByText(/fitzpatrick skin type is required/i)).toBeInTheDocument();
     expect(screen.getByText(/body area is required/i)).toBeInTheDocument();
     expect(screen.queryByText(/prior treatments is required/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/baseline severity is required/i)).toBeInTheDocument();
   });
 
   it('submits snake_case intake values that match the multipart contract', async () => {
@@ -67,7 +65,6 @@ describe('IntakeFields', () => {
     await user.selectOptions(screen.getByLabelText(/fitzpatrick skin type/i), 'IV');
     await user.type(screen.getByLabelText(/body area/i), 'forearms');
     await user.type(screen.getByLabelText(/prior treatments/i), 'topical steroids');
-    await user.selectOptions(screen.getByLabelText(/baseline severity/i), 'moderate');
     await user.click(screen.getByRole('button', { name: /submit intake/i }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -80,7 +77,6 @@ describe('IntakeFields', () => {
         body_area: 'forearms',
         prior_treatments: 'topical steroids',
         daily_routine: '',
-        baseline_severity: 'moderate',
       },
       expect.anything(),
     );

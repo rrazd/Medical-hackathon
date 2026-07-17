@@ -81,12 +81,17 @@ export async function predict(values: IntakeFormValues, image: File): Promise<Pr
   body.append('body_area', values.body_area);
   body.append('prior_treatments', values.prior_treatments ?? '');
   body.append('daily_routine', values.daily_routine ?? '');
-  body.append('baseline_severity', values.baseline_severity);
 
   const response = await fetch('/api/predict', { method: 'POST', body });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Prediction request failed: ${detail}`);
+    let detail = response.statusText;
+    try {
+      const data = await response.json();
+      if (data && typeof data.detail === 'string') detail = data.detail;
+    } catch {
+      /* fall back to status text */
+    }
+    throw new Error(detail);
   }
   return response.json() as Promise<PredictResponse>;
 }

@@ -17,7 +17,6 @@ export const intakeSchema = z.object({
   body_area: requiredText('Body area'),
   prior_treatments: z.string().trim().optional(),
   daily_routine: z.string().trim().optional(),
-  baseline_severity: requiredText('Baseline severity'),
 });
 
 export type IntakeFormValues = z.infer<typeof intakeSchema>;

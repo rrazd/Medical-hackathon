@@ -23,7 +23,6 @@ const emptyDefaults: IntakeFormValues = {
   body_area: '',
   prior_treatments: '',
   daily_routine: '',
-  baseline_severity: '',
 };
 
 const INTAKE_STORAGE_KEY = 'dermamatch.intake';
@@ -58,7 +57,6 @@ const fieldLabels: Record<keyof IntakeFormValues, string> = {
   body_area: 'Body area',
   prior_treatments: 'Prior treatments',
   daily_routine: 'Your typical day',
-  baseline_severity: 'Baseline severity',
 };
 
 export function WizardView({

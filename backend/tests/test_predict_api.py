@@ -22,7 +22,6 @@ def _intake_form() -> dict:
         "fitzpatrick_skin_type": "IV",
         "body_area": "forearms",
         "prior_treatments": "topical steroids, moisturizer",
-        "baseline_severity": "moderate",
     }
 
 
@@ -73,3 +72,26 @@ def test_predict_rejects_non_image_upload():
     )
 
     assert response.status_code == 400
+
+
+def test_predict_rejects_too_small_image_with_400():
+    response = client.post(
+        "/api/predict",
+        data=_intake_form(),
+        files={"image": ("tiny.png", _valid_png_bytes(size=(120, 90)), "image/png")},
+    )
+
+    assert response.status_code == 400
+    assert "too small" in response.json()["detail"].lower()
+
+
+def test_predict_succeeds_without_baseline_severity():
+    form = _intake_form()
+    form.pop("baseline_severity", None)
+    response = client.post(
+        "/api/predict",
+        data=form,
+        files={"image": ("baseline.png", _valid_png_bytes(), "image/png")},
+    )
+
+    assert response.status_code == 200

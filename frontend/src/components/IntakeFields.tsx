@@ -86,21 +86,6 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
           <FieldError id="body-area-error" message={errors.body_area?.message} />
         </label>
 
-        <label>
-          Baseline severity
-          <select
-            aria-invalid={Boolean(errors.baseline_severity)}
-            aria-describedby={errors.baseline_severity ? 'baseline-severity-error' : undefined}
-            {...register('baseline_severity')}
-          >
-            <option value="">Select severity</option>
-            <option value="mild">Mild</option>
-            <option value="moderate">Moderate</option>
-            <option value="severe">Severe</option>
-          </select>
-          <FieldError id="baseline-severity-error" message={errors.baseline_severity?.message} />
-        </label>
-
         <label className="field-span-2">
           <span className="field-label-row">Tell us about your typical day <span className="field-optional">(optional)</span></span>
           <span className="field-help">
