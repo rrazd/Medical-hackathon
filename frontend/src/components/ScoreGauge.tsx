@@ -4,7 +4,6 @@ type ScoreGaugeProps = {
   value: number; // 0–100
   label?: string;
   size?: number;
-  valueTooltip?: string;
 };
 
 const ANGULAR_STEPS = 60;
@@ -17,7 +16,7 @@ const OUTER_R = 118;
  * clockwise from the top in proportion to `value`. Dots animate in with a
  * clockwise sweep on mount. Purely decorative rendering of a 0–100 score.
  */
-export function ScoreGauge({ value, label = 'out of 100', size = 220, valueTooltip }: ScoreGaugeProps) {
+export function ScoreGauge({ value, label = 'out of 100', size = 220 }: ScoreGaugeProps) {
   const fraction = Math.max(0, Math.min(100, value)) / 100;
   const rounded = Number.isInteger(value) ? value : value.toFixed(1);
 
@@ -59,15 +58,8 @@ export function ScoreGauge({ value, label = 'out of 100', size = 220, valueToolt
     <svg className="score-gauge" width={size} height={size} viewBox="0 0 240 240" role="img" aria-label={`${rounded} ${label}`}>
       <circle cx="120" cy="120" r="68" fill="#ffffff" stroke="#e3efe9" strokeWidth="1.5" />
       {dots}
-      <text
-        x="120"
-        y="118"
-        textAnchor="middle"
-        className="score-gauge-value"
-        style={valueTooltip ? { cursor: 'help' } : undefined}
-      >
+      <text x="120" y="118" textAnchor="middle" className="score-gauge-value">
         {rounded}
-        {valueTooltip && <title>{valueTooltip}</title>}
       </text>
       {labelLines.map((line, i) => (
         <text
