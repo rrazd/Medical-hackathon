@@ -619,6 +619,15 @@ label {
   color: var(--ink-soft);
 }
 
+.field-label-row {
+  display: inline;
+}
+
+.field-optional {
+  font-weight: 450;
+  color: var(--muted);
+}
+
 input,
 select {
   width: 100%;
@@ -660,24 +669,14 @@ select[aria-invalid="true"]:focus {
 }
 
 fieldset {
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  margin: 0 0 var(--sp-5);
-  padding: var(--sp-5);
-  background: var(--surface-alt);
+  border: none;
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  background: transparent;
 }
 
 fieldset:last-of-type {
   margin-bottom: var(--sp-4);
-}
-
-legend {
-  font-weight: 750;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--brand-700);
-  padding: 0 var(--sp-2);
 }
 
 .preview {

@@ -25,6 +25,19 @@ const emptyDefaults: IntakeFormValues = {
   baseline_severity: '',
 };
 
+const INTAKE_STORAGE_KEY = 'dermamatch.intake';
+
+function loadPersistedDefaults(): IntakeFormValues {
+  try {
+    const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
+    if (!raw) return emptyDefaults;
+    const saved = JSON.parse(raw) as Partial<IntakeFormValues>;
+    return { ...emptyDefaults, ...saved };
+  } catch {
+    return emptyDefaults;
+  }
+}
+
 const STEPS = ['Upload photo', 'Your details', 'Review', 'Results'] as const;
 
 function formatBytes(bytes: number): string {
@@ -67,12 +80,26 @@ export function WizardView({
     register,
     trigger,
     getValues,
+    watch,
     formState: { errors },
   } = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeSchema),
-    defaultValues: emptyDefaults,
-    mode: 'onTouched',
+    defaultValues: loadPersistedDefaults(),
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
   });
+
+  // Persist intake values so they survive a page refresh.
+  useEffect(() => {
+    const subscription = watch((values) => {
+      try {
+        localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(values));
+      } catch {
+        /* ignore storage failures */
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
 
   // Advance to the results step once a prediction comes back.
   useEffect(() => {
@@ -281,11 +308,6 @@ export function WizardView({
             <h3>Tell us about you</h3>
             <p className="hint">These details help match you with similar reference cases.</p>
             <IntakeFields register={register} errors={errors} />
-            {Object.keys(errors).length > 0 && (
-              <p className="warning" role="alert">
-                Please complete all required fields.
-              </p>
-            )}
           </div>
         )}
 

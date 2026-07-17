@@ -51,7 +51,7 @@ describe('IntakeFields', () => {
     expect(screen.getByText(/race\/ethnicity is required/i)).toBeInTheDocument();
     expect(screen.getByText(/fitzpatrick skin type is required/i)).toBeInTheDocument();
     expect(screen.getByText(/body area is required/i)).toBeInTheDocument();
-    expect(screen.getByText(/prior treatments is required/i)).toBeInTheDocument();
+    expect(screen.queryByText(/prior treatments is required/i)).not.toBeInTheDocument();
     expect(screen.getByText(/baseline severity is required/i)).toBeInTheDocument();
   });
 

@@ -19,7 +19,6 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 export function IntakeFields({ register, errors }: IntakeFieldsProps) {
   return (
     <fieldset>
-      <legend>Demographics and context</legend>
       <div className="form-grid">
         <label>
           Age
@@ -88,11 +87,10 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
         </label>
 
         <label>
-          Prior treatments
+          <span className="field-label-row">Prior treatments <span className="field-optional">(optional)</span></span>
           <input
             aria-invalid={Boolean(errors.prior_treatments)}
             aria-describedby={errors.prior_treatments ? 'prior-treatments-error' : undefined}
-            placeholder="Use none if there have been no prior treatments"
             {...register('prior_treatments')}
           />
           <FieldError id="prior-treatments-error" message={errors.prior_treatments?.message} />

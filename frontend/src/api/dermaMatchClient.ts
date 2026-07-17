@@ -69,7 +69,7 @@ export async function predict(values: IntakeFormValues, image: File): Promise<Pr
   body.append('race_ethnicity', values.race_ethnicity);
   body.append('fitzpatrick_skin_type', values.fitzpatrick_skin_type);
   body.append('body_area', values.body_area);
-  body.append('prior_treatments', values.prior_treatments);
+  body.append('prior_treatments', values.prior_treatments ?? '');
   body.append('baseline_severity', values.baseline_severity);
 
   const response = await fetch('/api/predict', { method: 'POST', body });

@@ -23,7 +23,7 @@ async def predict(
     race_ethnicity: str = Form(...),
     fitzpatrick_skin_type: str = Form(...),
     body_area: str = Form(...),
-    prior_treatments: str = Form(...),
+    prior_treatments: str = Form(""),
     baseline_severity: str = Form(...),
 ) -> PredictResponse:
     if image.content_type not in {"image/jpeg", "image/png"}:
@@ -35,7 +35,6 @@ async def predict(
         (race_ethnicity, "race_ethnicity"),
         (fitzpatrick_skin_type, "fitzpatrick_skin_type"),
         (body_area, "body_area"),
-        (prior_treatments, "prior_treatments"),
         (baseline_severity, "baseline_severity"),
     ]:
         if not value.strip():

@@ -126,7 +126,7 @@ describe('App', () => {
 
     // Step 2 — advancing with empty intake is blocked and does not call the API.
     await user.click(screen.getByRole('button', { name: /next/i }));
-    expect(await screen.findByText(/please complete all required fields/i)).toBeInTheDocument();
+    expect(await screen.findByText(/age is required/i)).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 
     await user.type(screen.getByRole('spinbutton', { name: /age/i }), '36');
