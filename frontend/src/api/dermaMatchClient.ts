@@ -28,6 +28,7 @@ export type ContributingBiomarker = {
 
 export type Explanation = {
   summary: string;
+  recommendation_rationale?: string | null;
   top_contributing_biomarkers: ContributingBiomarker[];
   lifestyle_considerations?: string[];
 };

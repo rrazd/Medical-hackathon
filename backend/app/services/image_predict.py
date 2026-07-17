@@ -174,7 +174,7 @@ def _apply_lifestyle_nudges(
     for item in likelihoods:
         delta = nudges.get(item.biologic, 0)
         if delta and item.likelihood_pct > 0:
-            new_pct = int(min(95, max(0, item.likelihood_pct + delta)))
+            new_pct = round(min(95, max(0, item.likelihood_pct + delta)), 1)
             adjusted.append(
                 item.model_copy(
                     update={
@@ -307,7 +307,7 @@ def _likelihood_for_biologic(
     match_score = BEST_MATCH_WEIGHT * best_similarity + MEAN_MATCH_WEIGHT * mean_similarity
     return BiologicLikelihood(
         biologic=biologic,
-        likelihood_pct=int(round(match_score * 100)),
+        likelihood_pct=round(match_score * 100, 1),
         confidence_label=_confidence_label(best_similarity, len(matches)),
         matched_case_count=len(matches),
         weighted_outcome_score=round(match_score, 3),
@@ -408,12 +408,21 @@ def _explanation(
     exact: Optional[ExactMatch],
     lifestyle_considerations: Optional[List[str]] = None,
 ) -> Explanation:
-    best = max(likelihoods, key=lambda item: item.likelihood_pct)
+    ranked = sorted(likelihoods, key=lambda item: item.likelihood_pct, reverse=True)
+    best = ranked[0]
+    top_biomarkers = _top_biomarkers(patient)
+    lead_biomarker = top_biomarkers[0].label.lower() if top_biomarkers else "visual biomarkers"
+
     if exact is not None:
         summary = (
             f"Exact image match found: your photo is visually identical to reference "
             f"case {exact.case_id}, who cleared on {exact.biologic}. We are therefore "
             f"highly confident {exact.biologic} is the closest-matched treatment for you."
+        )
+        rationale = (
+            f"{exact.biologic} is recommended because your uploaded photo is a near-exact "
+            f"match to reference case {exact.case_id}, a patient who improved on "
+            f"{exact.biologic} — the strongest possible image-grounded signal."
         )
     else:
         summary = (
@@ -421,9 +430,22 @@ def _explanation(
             f"cases. {best.biologic} is the closest match — your skin most resembles "
             f"patients who improved on {best.biologic}."
         )
+        rationale = None
+        if len(ranked) > 1:
+            other = ranked[1]
+            margin = round(best.likelihood_pct - other.likelihood_pct, 1)
+            margin_text = f"{margin:g}-point" if margin > 0 else "narrow"
+            rationale = (
+                f"{best.biologic} edges out {other.biologic} ({best.likelihood_pct:g}% vs "
+                f"{other.likelihood_pct:g}%, a {margin_text} margin) because your closest "
+                f"reference matches — driven mainly by your {lead_biomarker} — are patients "
+                f"who cleared on {best.biologic} rather than {other.biologic}."
+            )
+
     return Explanation(
         summary=summary,
-        top_contributing_biomarkers=_top_biomarkers(patient),
+        recommendation_rationale=rationale,
+        top_contributing_biomarkers=top_biomarkers,
         lifestyle_considerations=lifestyle_considerations or [],
     )
 

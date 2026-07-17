@@ -14,7 +14,7 @@ class PatientFeatures(BaseModel):
 
 class BiologicLikelihood(BaseModel):
     biologic: str
-    likelihood_pct: int
+    likelihood_pct: float
     confidence_label: str
     matched_case_count: int
     weighted_outcome_score: float
@@ -31,6 +31,7 @@ class ContributingBiomarker(BaseModel):
 
 class Explanation(BaseModel):
     summary: str
+    recommendation_rationale: Optional[str] = None
     top_contributing_biomarkers: List[ContributingBiomarker]
     lifestyle_considerations: List[str] = Field(default_factory=list)
 

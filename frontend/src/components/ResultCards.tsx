@@ -25,7 +25,11 @@ export function ResultCards({ likelihoods, exactMatch }: ResultCardsProps) {
             <article className="result-card" key={item.biologic}>
               <h3>{item.biologic}</h3>
               <div className="result-gauge">
-                <ScoreGauge value={item.likelihood_pct} label="% likelihood" />
+                <ScoreGauge
+                  value={item.likelihood_pct}
+                  label="% likelihood of improvement"
+                  valueTooltip="A visual-similarity score: how closely your skin's biomarkers match reference patients who improved on this biologic. Higher means a closer match — it's not a guaranteed chance of improvement."
+                />
               </div>
               <dl className="result-metrics">
                 <div>
