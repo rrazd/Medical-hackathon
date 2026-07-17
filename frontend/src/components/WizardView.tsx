@@ -85,6 +85,7 @@ export function WizardView({
     trigger,
     getValues,
     watch,
+    reset,
     formState: { errors },
   } = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeSchema),
@@ -219,6 +220,13 @@ export function WizardView({
     setFileSize(0);
     setFileError('');
     setStep(0);
+    // Clear the persisted step-2 intake so "Start over" begins from a blank form.
+    try {
+      localStorage.removeItem(INTAKE_STORAGE_KEY);
+    } catch {
+      /* ignore storage failures */
+    }
+    reset(emptyDefaults);
     onRestart();
   }
 
