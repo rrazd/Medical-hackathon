@@ -87,16 +87,6 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
         </label>
 
         <label>
-          <span className="field-label-row">Prior treatments <span className="field-optional">(optional)</span></span>
-          <input
-            aria-invalid={Boolean(errors.prior_treatments)}
-            aria-describedby={errors.prior_treatments ? 'prior-treatments-error' : undefined}
-            {...register('prior_treatments')}
-          />
-          <FieldError id="prior-treatments-error" message={errors.prior_treatments?.message} />
-        </label>
-
-        <label>
           Baseline severity
           <select
             aria-invalid={Boolean(errors.baseline_severity)}
@@ -109,6 +99,37 @@ export function IntakeFields({ register, errors }: IntakeFieldsProps) {
             <option value="severe">Severe</option>
           </select>
           <FieldError id="baseline-severity-error" message={errors.baseline_severity?.message} />
+        </label>
+
+        <label className="field-span-2">
+          <span className="field-label-row">Tell us about your typical day <span className="field-optional">(optional)</span></span>
+          <span className="field-help">
+            A quick sketch of your routine — work, screen time, travel, exercise, kids —
+            helps us weigh each biologic's dosing convenience and side-effect profile for your lifestyle.
+          </span>
+          <textarea
+            rows={3}
+            placeholder="e.g. Long days at a computer, lots of travel for work, and I run outdoors most mornings."
+            aria-invalid={Boolean(errors.daily_routine)}
+            aria-describedby={errors.daily_routine ? 'daily-routine-error' : undefined}
+            {...register('daily_routine')}
+          />
+          <FieldError id="daily-routine-error" message={errors.daily_routine?.message} />
+        </label>
+
+        <label className="field-span-2">
+          <span className="field-label-row">Prior treatments <span className="field-optional">(optional)</span></span>
+          <span className="field-help">
+            Any creams, pills, biologics, or therapies you've already tried for your skin.
+          </span>
+          <textarea
+            rows={3}
+            placeholder="e.g. Topical steroids, then methotrexate for 6 months."
+            aria-invalid={Boolean(errors.prior_treatments)}
+            aria-describedby={errors.prior_treatments ? 'prior-treatments-error' : undefined}
+            {...register('prior_treatments')}
+          />
+          <FieldError id="prior-treatments-error" message={errors.prior_treatments?.message} />
         </label>
       </div>
     </fieldset>

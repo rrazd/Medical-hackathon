@@ -25,10 +25,17 @@ DEFAULT_DATA_ROOT = Path(__file__).resolve().parents[2] / "data"
 DEFAULT_CSV_NAME = "cases.csv"
 
 SIGNATURE_EDGE = 16  # perceptual signature is a 16x16 normalized grayscale grid
+HISTOGRAM_BINS = 8  # per-channel HSV bins for the crop-tolerant color histogram
+_AUTOCROP_TOLERANCE = 12  # per-channel delta from the border color that counts as content
 
 
 def image_signature(image_bytes: bytes) -> Tuple[float, ...]:
-    """Return a lighting-robust perceptual signature for near-duplicate detection."""
+    """Return a lighting-robust perceptual signature for near-duplicate detection.
+
+    This is a structural signature (spatial layout). It is extremely precise for
+    identical files but sensitive to cropping/translation, so it is paired with
+    :func:`image_histogram` to remain robust to screenshots and crops.
+    """
     with Image.open(io.BytesIO(image_bytes)) as img:
         gray = img.convert("L").resize(
             (SIGNATURE_EDGE, SIGNATURE_EDGE), Image.LANCZOS
@@ -39,6 +46,46 @@ def image_signature(image_bytes: bytes) -> Tuple[float, ...]:
     if norm > 0:
         vector /= norm
     return tuple(float(v) for v in vector)
+
+
+def _autocrop_uniform_border(img: "Image.Image") -> "Image.Image":
+    """Trim a near-uniform border (e.g. screenshot chrome / letterboxing)."""
+    arr = np.asarray(img.convert("RGB")).astype(np.int16)
+    if arr.shape[0] < 4 or arr.shape[1] < 4:
+        return img
+    edges = np.concatenate(
+        [arr[0], arr[-1], arr[:, 0], arr[:, -1]]
+    ).reshape(-1, 3)
+    background = np.median(edges, axis=0)
+    mask = np.abs(arr - background).sum(axis=2) > _AUTOCROP_TOLERANCE * 3
+    ys, xs = np.where(mask)
+    if len(xs) < 10:
+        return img
+    return img.crop((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
+
+
+def image_histogram(image_bytes: bytes) -> Tuple[float, ...]:
+    """Return a crop/translation-tolerant HSV color-histogram signature.
+
+    Uniform borders are trimmed first, so a screenshot of a reference photo (which
+    adds UI chrome or a slightly different crop) still matches the original.
+    """
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        cropped = _autocrop_uniform_border(img).convert("HSV").resize((64, 64))
+        arr = np.asarray(cropped, dtype=np.float64).reshape(-1, 3)
+    hist = np.histogramdd(
+        arr,
+        bins=(HISTOGRAM_BINS, HISTOGRAM_BINS, HISTOGRAM_BINS),
+        range=[(0, 255)] * 3,
+    )[0].flatten()
+    total = hist.sum()
+    if total > 0:
+        hist /= total
+    hist = np.sqrt(hist)  # Hellinger-style: reduce dominance of one color bin
+    norm = np.linalg.norm(hist)
+    if norm > 0:
+        hist /= norm
+    return tuple(float(v) for v in hist)
 
 
 def signature_similarity(a: Tuple[float, ...], b: Tuple[float, ...]) -> float:
@@ -83,6 +130,7 @@ class ImageReferenceCase:
     improvement_score: float
     outcome_label: str
     before_signature: Tuple[float, ...] = ()
+    before_histogram: Tuple[float, ...] = ()
 
 
 def _clip_unit(value: float) -> float:
@@ -209,6 +257,7 @@ class ImageReferenceRepository:
                         improvement_score=improvement,
                         outcome_label=_outcome_label(improvement),
                         before_signature=image_signature(before_bytes),
+                        before_histogram=image_histogram(before_bytes),
                     )
                 )
 

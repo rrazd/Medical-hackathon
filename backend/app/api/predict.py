@@ -24,6 +24,7 @@ async def predict(
     fitzpatrick_skin_type: str = Form(...),
     body_area: str = Form(...),
     prior_treatments: str = Form(""),
+    daily_routine: str = Form(""),
     baseline_severity: str = Form(...),
 ) -> PredictResponse:
     if image.content_type not in {"image/jpeg", "image/png"}:
@@ -46,7 +47,7 @@ async def predict(
 
     try:
         repository = get_repository()
-        return build_predict_response(image_bytes, age, repository)
+        return build_predict_response(image_bytes, age, repository, daily_routine=daily_routine)
     except ImageDatasetError as exc:
         raise HTTPException(
             status_code=503,

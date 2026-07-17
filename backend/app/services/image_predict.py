@@ -26,6 +26,7 @@ from app.services.biomarker_extraction import extract_biomarkers
 from app.services.image_dataset import (
     ImageReferenceCase,
     ImageReferenceRepository,
+    image_histogram,
     image_signature,
     signature_similarity,
 )
@@ -67,9 +68,13 @@ MAX_REASONS = 3
 # Distance below which two features count as an aligned "matching reason".
 REASON_DISTANCE_CEILING = 0.25
 
-# Perceptual-signature cosine similarity above which an uploaded photo is treated
-# as the *same* image as a reference before-photo (our matching-algorithm probe).
-EXACT_MATCH_THRESHOLD = 0.985
+# Perceptual-signature similarity above which an uploaded photo is treated as the
+# *same* image as a reference before-photo (our matching-algorithm probe). We take
+# the max of a precise structural signature (great for identical files) and a
+# crop/translation-tolerant color histogram (great for screenshots/re-crops of a
+# reference photo). Different patients top out well below this (structural <=0.60,
+# histogram <=0.86), so 0.90 keeps a safe margin against false positives.
+EXACT_MATCH_THRESHOLD = 0.90
 # Confidence floor applied to the matched biologic when an exact image match is found.
 EXACT_MATCH_LIKELIHOOD_FLOOR = 96
 
@@ -81,6 +86,109 @@ PRIVACY_NOTICE = (
     "Uploaded images are analyzed for this session only and are not stored as an "
     "account or EHR record."
 )
+
+# Lifestyle / side-effect-profile heuristics derived from the optional "typical day"
+# note. These reflect *dosing-convenience and tolerability considerations* a patient
+# might raise with their dermatologist — not efficacy claims. Each rule may nudge the
+# recommendation toward the biologic whose profile better fits that lifestyle, and/or
+# surface a plain-language consideration. Dupixent maintenance is ~every 2 weeks;
+# Ebglyss maintenance is ~every 4 weeks after loading.
+LIFESTYLE_NUDGE_POINTS = 3
+LIFESTYLE_NUDGE_CAP = 6
+LIFESTYLE_RULES: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...] = (
+    (
+        (
+            "travel", "traveling", "on the road", "flight", "flying", "frequent flyer",
+            "busy", "hectic", "packed schedule", "no time", "always moving", "on the go",
+            "commute", "commuting", "shift work", "long hours", "overtime",
+        ),
+        "Ebglyss",
+        "Your day sounds busy and on-the-go — Ebglyss's less frequent maintenance dosing "
+        "(about every 4 weeks vs every 2 weeks) may be easier to keep up with.",
+    ),
+    (
+        (
+            "needle", "needles", "injection", "injections", "shot", "shots",
+            "afraid of needles", "hate shots", "phobia", "squeamish",
+        ),
+        "Ebglyss",
+        "If frequent injections are a concern, Ebglyss's less frequent maintenance "
+        "schedule means fewer shots to manage.",
+    ),
+    (
+        (
+            "child", "children", "kids", "toddler", "baby", "parent", "parenting",
+            "caregiver", "caring for", "family to look after",
+        ),
+        "Ebglyss",
+        "Caregiving leaves little time for clinic visits — a less frequent dosing "
+        "schedule (Ebglyss) may fit a full household routine better.",
+    ),
+    (
+        (
+            "screen", "screens", "computer", "monitor", "coding", "reading",
+            "contact lens", "contact lenses", "contacts", "dry eye", "dry eyes",
+            "eye strain", "gaming",
+        ),
+        None,
+        "You spend meaningful time on screens or wear contacts — discuss conjunctivitis "
+        "(eye irritation) monitoring with your dermatologist, as it is a known side "
+        "effect of both biologics.",
+    ),
+    (
+        (
+            "outdoor", "outdoors", "outside", "sun", "sweat", "sweating", "gym",
+            "run", "running", "jog", "sport", "sports", "athlete", "active",
+            "hiking", "hike", "swim", "swimming", "cycling", "bike",
+        ),
+        None,
+        "An active, outdoor routine can affect skin barrier and irritation — worth "
+        "raising when you discuss day-to-day tolerability with your dermatologist.",
+    ),
+)
+
+
+def _analyze_lifestyle(daily_routine: str) -> Tuple[Dict[str, int], List[str]]:
+    """Map the free-text 'typical day' to biologic nudges + plain considerations."""
+    nudges: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
+    considerations: List[str] = []
+    text = (daily_routine or "").lower().strip()
+    if not text:
+        return nudges, considerations
+    for keywords, biologic, note in LIFESTYLE_RULES:
+        if any(keyword in text for keyword in keywords):
+            considerations.append(note)
+            if biologic in nudges:
+                nudges[biologic] = min(
+                    LIFESTYLE_NUDGE_CAP, nudges[biologic] + LIFESTYLE_NUDGE_POINTS
+                )
+    return nudges, considerations
+
+
+def _apply_lifestyle_nudges(
+    likelihoods: List[BiologicLikelihood], nudges: Dict[str, int]
+) -> List[BiologicLikelihood]:
+    if not any(nudges.values()):
+        return likelihoods
+    adjusted: List[BiologicLikelihood] = []
+    for item in likelihoods:
+        delta = nudges.get(item.biologic, 0)
+        if delta and item.likelihood_pct > 0:
+            new_pct = int(min(95, max(0, item.likelihood_pct + delta)))
+            adjusted.append(
+                item.model_copy(
+                    update={
+                        "likelihood_pct": new_pct,
+                        "caveat": (
+                            f"{item.caveat} Adjusted for lifestyle fit "
+                            f"(+{delta} for dosing-convenience considerations)."
+                        ),
+                    }
+                )
+            )
+        else:
+            adjusted.append(item)
+    return adjusted
 
 
 @dataclass(frozen=True)
@@ -276,11 +384,18 @@ def _top_biomarkers(patient: PatientFeatures) -> List[ContributingBiomarker]:
 def _find_exact_match(
     image_bytes: bytes, cases: List[ImageReferenceCase]
 ) -> Optional[Tuple[ImageReferenceCase, float]]:
-    """Return the reference case whose before-photo is (near-)identical, if any."""
+    """Return the reference case whose before-photo is (near-)identical, if any.
+
+    Robust to screenshots/re-crops: combines a precise structural signature with a
+    crop/translation-tolerant color histogram and keeps whichever is stronger.
+    """
     upload_signature = image_signature(image_bytes)
+    upload_histogram = image_histogram(image_bytes)
     best: Optional[Tuple[ImageReferenceCase, float]] = None
     for case in cases:
-        similarity = signature_similarity(upload_signature, case.before_signature)
+        structural = signature_similarity(upload_signature, case.before_signature)
+        histogram = signature_similarity(upload_histogram, case.before_histogram)
+        similarity = max(structural, histogram)
         if similarity >= EXACT_MATCH_THRESHOLD and (best is None or similarity > best[1]):
             best = (case, similarity)
     return best
@@ -291,6 +406,7 @@ def _explanation(
     likelihoods: List[BiologicLikelihood],
     total_cases: int,
     exact: Optional[ExactMatch],
+    lifestyle_considerations: Optional[List[str]] = None,
 ) -> Explanation:
     best = max(likelihoods, key=lambda item: item.likelihood_pct)
     if exact is not None:
@@ -308,6 +424,7 @@ def _explanation(
     return Explanation(
         summary=summary,
         top_contributing_biomarkers=_top_biomarkers(patient),
+        lifestyle_considerations=lifestyle_considerations or [],
     )
 
 
@@ -315,6 +432,7 @@ def build_predict_response(
     image_bytes: bytes,
     age: int,
     repository: ImageReferenceRepository,
+    daily_routine: str = "",
 ) -> PredictResponse:
     cases = repository.list_cases()
     patient_features, quality = extract_biomarkers(image_bytes)
@@ -322,6 +440,8 @@ def build_predict_response(
 
     likelihoods = [_likelihood_for_biologic(biologic, scored) for biologic in BIOLOGICS]
     matched_patients = _matched_patients(scored)
+
+    lifestyle_nudges, lifestyle_considerations = _analyze_lifestyle(daily_routine)
 
     exact: Optional[ExactMatch] = None
     exact_hit = _find_exact_match(image_bytes, cases)
@@ -352,6 +472,10 @@ def build_predict_response(
             else item
             for item in likelihoods
         ]
+    else:
+        # Lifestyle only nudges the recommendation when there is no exact image match
+        # (an exact match is a far stronger, image-grounded signal).
+        likelihoods = _apply_lifestyle_nudges(likelihoods, lifestyle_nudges)
 
     warnings: List[str] = list(quality.warnings)
     if len(cases) < 10:
@@ -364,7 +488,13 @@ def build_predict_response(
         privacy_notice=PRIVACY_NOTICE,
         patient_features=patient_features,
         likelihoods=likelihoods,
-        explanation=_explanation(patient_features, likelihoods, len(cases), exact),
+        explanation=_explanation(
+            patient_features,
+            likelihoods,
+            len(cases),
+            exact,
+            lifestyle_considerations,
+        ),
         heatmap=Heatmap(
             overlay_url=None,
             legend="Visual biomarker overlay is not yet rendered in this prototype.",

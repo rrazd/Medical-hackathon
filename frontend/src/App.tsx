@@ -20,19 +20,18 @@ function Results({ result }: { result: PredictResponse }) {
     <section className="results" aria-live="polite" aria-labelledby="results-heading">
       <h2 id="results-heading">Your treatment response estimate</h2>
       <p className="hint">
-        Request {result.request_id} · estimates are derived from visually similar reference before/after cases.
+        Estimates are derived from visually similar reference before/after cases.
         This is decision-support, not a diagnosis.
       </p>
-      <SafetyNotice copy={result.disclaimer} />
-      <PrivacyNotice copy={result.privacy_notice} />
       {result.exact_match && <ExactMatchBanner match={result.exact_match} />}
       <ResultCards likelihoods={result.likelihoods} />
       <ExplanationPanel explanation={result.explanation} />
       {result.heatmap.overlay_url ? <HeatmapPlaceholder heatmap={result.heatmap} /> : null}
       <MatchedCasesPreview matchedPatients={result.matched_patients} />
-      {result.warnings.map((warning) => (
-        <p className="warning" key={warning}>{warning}</p>
-      ))}
+      <div className="notice-footer">
+        <SafetyNotice copy={result.disclaimer} compact />
+        <PrivacyNotice copy={result.privacy_notice} compact />
+      </div>
     </section>
   );
 }

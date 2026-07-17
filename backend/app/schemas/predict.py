@@ -32,6 +32,7 @@ class ContributingBiomarker(BaseModel):
 class Explanation(BaseModel):
     summary: str
     top_contributing_biomarkers: List[ContributingBiomarker]
+    lifestyle_considerations: List[str] = Field(default_factory=list)
 
 
 class Heatmap(BaseModel):

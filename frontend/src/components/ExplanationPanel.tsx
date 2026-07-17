@@ -34,6 +34,17 @@ export function ExplanationPanel({ explanation }: ExplanationPanelProps) {
           </article>
         ))}
       </div>
+
+      {explanation.lifestyle_considerations && explanation.lifestyle_considerations.length > 0 && (
+        <div className="lifestyle-considerations">
+          <h3>Lifestyle &amp; side-effect considerations</h3>
+          <ul>
+            {explanation.lifestyle_considerations.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

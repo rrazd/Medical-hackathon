@@ -685,6 +685,74 @@ input[type="file"] {
   cursor: pointer;
 }
 
+.field-span-2 {
+  grid-column: 1 / -1;
+  margin-top: var(--sp-4);
+}
+
+.field-help {
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 76px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+textarea:hover {
+  border-color: var(--brand-400);
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+textarea[aria-invalid="true"] {
+  border-color: var(--amber-500);
+}
+
+.lifestyle-considerations {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--brand-50);
+}
+
+.lifestyle-considerations h3 {
+  margin: 0 0 var(--sp-2);
+  font-size: 15px;
+  color: var(--brand-700);
+}
+
+.lifestyle-considerations ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.lifestyle-considerations li {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 input[aria-invalid="true"],
 select[aria-invalid="true"] {
   border-color: var(--amber-500);
@@ -1133,23 +1201,23 @@ button.secondary:focus-visible {
 
 button.tertiary {
   background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--line);
+  color: var(--brand-600);
+  border: none;
   box-shadow: none;
   font-weight: 600;
 }
 
 button.tertiary:hover:not(:disabled) {
   background: var(--surface-alt);
-  border-color: var(--muted);
-  color: var(--ink);
+  border: none;
+  color: var(--brand-700);
   filter: none;
   box-shadow: none;
   transform: none;
 }
 
 button.tertiary:focus-visible {
-  box-shadow: 0 0 0 3px var(--line-strong);
+  box-shadow: 0 0 0 3px var(--brand-100);
 }
 
 .analyzing {

@@ -16,6 +16,7 @@ export const intakeSchema = z.object({
   fitzpatrick_skin_type: requiredText('Fitzpatrick skin type'),
   body_area: requiredText('Body area'),
   prior_treatments: z.string().trim().optional(),
+  daily_routine: z.string().trim().optional(),
   baseline_severity: requiredText('Baseline severity'),
 });
 

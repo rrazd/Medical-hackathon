@@ -14,6 +14,7 @@ const emptyDefaults: IntakeFormValues = {
   fitzpatrick_skin_type: '',
   body_area: '',
   prior_treatments: '',
+  daily_routine: '',
   baseline_severity: '',
 };
 
@@ -78,6 +79,7 @@ describe('IntakeFields', () => {
         fitzpatrick_skin_type: 'IV',
         body_area: 'forearms',
         prior_treatments: 'topical steroids',
+        daily_routine: '',
         baseline_severity: 'moderate',
       },
       expect.anything(),

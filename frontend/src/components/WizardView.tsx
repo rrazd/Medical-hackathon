@@ -22,6 +22,7 @@ const emptyDefaults: IntakeFormValues = {
   fitzpatrick_skin_type: '',
   body_area: '',
   prior_treatments: '',
+  daily_routine: '',
   baseline_severity: '',
 };
 
@@ -54,6 +55,7 @@ const fieldLabels: Record<keyof IntakeFormValues, string> = {
   fitzpatrick_skin_type: 'Fitzpatrick skin type',
   body_area: 'Body area',
   prior_treatments: 'Prior treatments',
+  daily_routine: 'Your typical day',
   baseline_severity: 'Baseline severity',
 };
 
