@@ -461,7 +461,7 @@ def build_predict_response(
                     "likelihood_pct": max(
                         item.likelihood_pct, EXACT_MATCH_LIKELIHOOD_FLOOR
                     ),
-                    "confidence_label": "exact image match — very high confidence",
+                    "confidence_label": "very high confidence",
                     "caveat": (
                         f"Your uploaded photo is visually identical to {case.case_id}, "
                         f"who improved on {case.biologic}."

@@ -272,7 +272,7 @@ h1, h2, h3 {
 }
 
 .results-panel {
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-alt) 100%);
+  background: none;
 }
 
 .section-heading {
@@ -1023,6 +1023,24 @@ button:disabled {
   margin-bottom: var(--sp-5);
 }
 
+/* Keep top/bottom padding inside the step box identical across all steps by
+   stripping stray leading/trailing margins from each step's content. */
+.wizard-step > *:first-child {
+  margin-top: 0;
+}
+
+.wizard-step > *:last-child {
+  margin-bottom: 0;
+}
+
+.wizard-step .results {
+  margin-top: 0;
+}
+
+.wizard-step .results > *:last-child {
+  margin-bottom: 0;
+}
+
 /* File drop zone */
 .visually-hidden-input {
   position: absolute;
@@ -1233,44 +1251,77 @@ button.tertiary:focus-visible {
   margin: 0;
 }
 
-.exact-match {
-  border: 2px solid var(--brand-500);
+.recommendation-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  padding: var(--sp-4);
   border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--brand-50), var(--surface));
-  padding: var(--sp-5);
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  color: #fff;
+  text-align: center;
   box-shadow: var(--shadow-brand);
+}
+
+.recommendation-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.recommendation-name {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.exact-match {
+  border: 1px solid var(--brand-200);
+  border-radius: var(--r-sm);
+  background: var(--brand-50);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: none;
   display: grid;
+  gap: var(--sp-2);
+}
+
+.exact-match-head {
+  display: flex;
+  align-items: flex-start;
   gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
 .exact-match-badge {
-  justify-self: start;
+  flex: none;
+  align-self: center;
   background: var(--brand-600);
   color: #fff;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: var(--r-pill);
+  white-space: nowrap;
 }
 
-.exact-match h2 {
+.exact-match-text {
   margin: 0;
-  font-size: 20px;
-  color: var(--brand-700);
-}
-
-.exact-match p {
-  margin: 0;
+  flex: 1 1 260px;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--ink);
 }
 
 .exact-match-images {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--sp-3);
-  margin-top: var(--sp-1);
+  gap: var(--sp-2);
+  max-width: 280px;
 }
 
 .exact-match-images figure {
@@ -1287,9 +1338,91 @@ button.tertiary:focus-visible {
 }
 
 .exact-match-images figcaption {
-  margin-top: var(--sp-1);
-  font-size: 12px;
-  font-weight: 700;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand-700);
+  text-align: center;
+}
+
+/* ============================================================
+   Confidence toggletip (dotted, click to reveal exact match)
+   ============================================================ */
+.toggletip {
+  position: relative;
+  display: inline-block;
+}
+
+.toggletip-trigger {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--brand-700);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 1px dotted currentColor;
+  line-height: 1.2;
+}
+
+.toggletip-trigger:hover,
+.toggletip-trigger:focus-visible {
+  color: var(--brand-600);
+  outline: none;
+}
+
+.toggletip-bubble {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: max-content;
+  max-width: 280px;
+  padding: var(--sp-3);
+  background: #fff;
+  border: 1px solid var(--brand-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-brand);
+  text-align: left;
+}
+
+.toggletip-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.toggletip-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+.toggletip-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggletip-figure img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--brand-200);
+  display: block;
+}
+
+.toggletip-figure span {
+  font-size: 11px;
+  font-weight: 600;
   color: var(--brand-700);
   text-align: center;
 }

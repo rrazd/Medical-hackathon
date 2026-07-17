@@ -2,12 +2,9 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import { predict, type PredictResponse } from './api/dermaMatchClient';
-import { ExactMatchBanner } from './components/ExactMatchBanner';
 import { ExplanationPanel } from './components/ExplanationPanel';
-import { HeatmapPlaceholder } from './components/HeatmapPlaceholder';
 import { DermaLogo } from './components/DermaLogo';
 import { HeroVisuals } from './components/HeroVisuals';
-import { MatchedCasesPreview } from './components/MatchedCasesPreview';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { ResultCards } from './components/ResultCards';
 import { SafetyNotice } from './components/SafetyNotice';
@@ -16,22 +13,19 @@ import type { IntakeFormValues } from './types/intake';
 import './styles.css';
 
 function Results({ result }: { result: PredictResponse }) {
+  const recommended =
+    result.exact_match?.biologic ??
+    [...result.likelihoods].sort((a, b) => b.likelihood_pct - a.likelihood_pct)[0]?.biologic;
   return (
-    <section className="results" aria-live="polite" aria-labelledby="results-heading">
-      <h2 id="results-heading">Your treatment response estimate</h2>
-      <p className="hint">
-        Estimates are derived from visually similar reference before/after cases.
-        This is decision-support, not a diagnosis.
-      </p>
-      {result.exact_match && <ExactMatchBanner match={result.exact_match} />}
-      <ResultCards likelihoods={result.likelihoods} />
+    <section className="results" aria-live="polite" aria-label="Your treatment response estimate">
+      {recommended && (
+        <div className="recommendation-hero" role="status">
+          <span className="recommendation-label">Recommended for you to try</span>
+          <strong className="recommendation-name">{recommended}</strong>
+        </div>
+      )}
+      <ResultCards likelihoods={result.likelihoods} exactMatch={result.exact_match} />
       <ExplanationPanel explanation={result.explanation} />
-      {result.heatmap.overlay_url ? <HeatmapPlaceholder heatmap={result.heatmap} /> : null}
-      <MatchedCasesPreview matchedPatients={result.matched_patients} />
-      <div className="notice-footer">
-        <SafetyNotice copy={result.disclaimer} compact />
-        <PrivacyNotice copy={result.privacy_notice} compact />
-      </div>
     </section>
   );
 }

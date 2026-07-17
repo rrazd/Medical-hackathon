@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ExplanationPanel } from './ExplanationPanel';
@@ -25,18 +25,13 @@ const explanation: Explanation = {
 };
 
 describe('ExplanationPanel', () => {
-  it('renders the explanation summary and driver rows from the response', () => {
+  it('renders the explanation summary and the curated-database biomarker sentence', () => {
     render(<ExplanationPanel explanation={explanation} />);
 
     expect(screen.getByText(/this result shell will later describe visual biomarkers/i)).toBeInTheDocument();
-
-    const drivers = screen.getByRole('list', { name: /top contributing biomarker drivers/i });
-    expect(within(drivers).getByRole('heading', { name: 'lesion coverage' })).toBeInTheDocument();
-    expect(within(drivers).getByText('lesion_coverage_pct')).toBeInTheDocument();
-    expect(within(drivers).getByText('28.4')).toBeInTheDocument();
-    expect(within(drivers).getByText('similar to responders')).toBeInTheDocument();
-    expect(within(drivers).getByText('0.30')).toBeInTheDocument();
-    expect(within(drivers).getByRole('heading', { name: 'redness intensity' })).toBeInTheDocument();
-    expect(within(drivers).getByText('0.25')).toBeInTheDocument();
+    expect(
+      screen.getByText(/lesion coverage, affected area,\s*overall inflammation/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/curated database of real before\/after cases/i)).toBeInTheDocument();
   });
 });

@@ -211,6 +211,15 @@ export function WizardView({
     onSubmit(getValues(), selectedFile);
   }
 
+  function clearPersistedIntake() {
+    try {
+      localStorage.removeItem(INTAKE_STORAGE_KEY);
+    } catch {
+      /* ignore storage failures */
+    }
+    reset(emptyDefaults);
+  }
+
   function restart() {
     if (latestPreviewUrl.current) URL.revokeObjectURL(latestPreviewUrl.current);
     latestPreviewUrl.current = null;
@@ -221,13 +230,15 @@ export function WizardView({
     setFileError('');
     setStep(0);
     // Clear the persisted step-2 intake so "Start over" begins from a blank form.
-    try {
-      localStorage.removeItem(INTAKE_STORAGE_KEY);
-    } catch {
-      /* ignore storage failures */
-    }
-    reset(emptyDefaults);
+    clearPersistedIntake();
     onRestart();
+  }
+
+  function handleExit() {
+    // Leaving the wizard is an intentional "start from scratch" — clear the saved
+    // intake so re-entering begins blank. (A plain page refresh still retains it.)
+    clearPersistedIntake();
+    onExit();
   }
 
   return (
@@ -385,9 +396,6 @@ export function WizardView({
         {step === 3 && (
           <div className="wizard-step">
             {resultsSlot}
-            <button type="button" className="secondary" onClick={restart}>
-              Start over
-            </button>
           </div>
         )}
       </div>
@@ -401,7 +409,7 @@ export function WizardView({
                 Back
               </button>
             )}
-            <button type="button" className="tertiary" onClick={onExit}>
+            <button type="button" className="tertiary" onClick={handleExit}>
               Cancel
             </button>
           </div>
@@ -415,6 +423,14 @@ export function WizardView({
               {isSubmitting ? 'Estimating…' : 'Estimate response'}
             </button>
           )}
+        </div>
+      )}
+      {!isAnalyzing && step === 3 && (
+        <div className="wizard-nav">
+          <div className="wizard-nav-left" />
+          <button type="button" onClick={restart}>
+            Start over
+          </button>
         </div>
       )}
     </section>

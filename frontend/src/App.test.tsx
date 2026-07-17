@@ -142,14 +142,11 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /estimate response/i }));
 
     expect(
-      await screen.findByRole('heading', { name: /your treatment response estimate/i }, { timeout: 5000 }),
+      await screen.findByRole('heading', { name: /dupixent vs ebglyss comparison/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /dupixent vs ebglyss likelihood comparison/i })).toBeInTheDocument();
-    expect(screen.getByText(/not a diagnosis, prescription, or medical advice/i)).toBeInTheDocument();
-    expect(screen.getByText(/not stored as an account or EHR record/i)).toBeInTheDocument();
+    expect(screen.getByText(/recommended for you to try/i)).toBeInTheDocument();
     expect(screen.getByText('0.72')).toBeInTheDocument();
     expect(screen.queryByText(/biomarker heatmap placeholder/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /patients like you/i })).toBeInTheDocument();
     const formData = fetchMock.mock.calls[0][1]?.body as FormData;
     expect(formData.get('image')).toBe(image);
     expect(formData.get('age')).toBe('36');

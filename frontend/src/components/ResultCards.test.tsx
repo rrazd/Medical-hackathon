@@ -27,7 +27,7 @@ describe('ResultCards', () => {
   it('renders per-biologic likelihood details from the API response', () => {
     render(<ResultCards likelihoods={likelihoods} />);
 
-    expect(screen.getByRole('heading', { name: /dupixent vs ebglyss likelihood comparison/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /dupixent vs ebglyss comparison/i })).toBeInTheDocument();
 
     const dupixent = screen.getByRole('heading', { name: 'Dupixent' }).closest('article');
     const ebglyss = screen.getByRole('heading', { name: 'Ebglyss' }).closest('article');
@@ -40,6 +40,5 @@ describe('ResultCards', () => {
     expect(within(ebglyss as HTMLElement).getByRole('img', { name: /64 % likelihood/i })).toBeInTheDocument();
     expect(within(ebglyss as HTMLElement).getByText('4 similar cases')).toBeInTheDocument();
     expect(within(ebglyss as HTMLElement).getByText('0.64')).toBeInTheDocument();
-    expect(screen.getAllByText('Mock value; real matching comes in a later phase.')).toHaveLength(2);
   });
 });
