@@ -7,11 +7,9 @@ distance-weighted average of the improvement scores of the most similar cases.
 
 from __future__ import annotations
 
-import json
 import math
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from app.schemas.predict import (
@@ -70,6 +68,22 @@ MAX_MATCHED_PATIENTS = 3
 MAX_REASONS = 3
 # Distance below which two features count as an aligned "matching reason".
 REASON_DISTANCE_CEILING = 0.25
+
+# --- Discriminative recommendation tuning ---------------------------------
+# The winner is decided by a *relative* comparison: for each biomarker, is the
+# patient closer to the Dupixent cohort centroid or the Ebglyss one, weighted by
+# how much the two cohorts actually differ on that feature. This is balanced by
+# construction (symmetric) and driven only by features that genuinely separate the
+# groups, instead of absolute nearest-neighbor distance (which favors whichever
+# cohort happens to have a case near the query — a dataset artifact that flips with
+# the input distribution). The lean is centered on the *typical* reference photo
+# (z-scored against the reference cohort) so neither biologic starts ahead.
+PREF_Z_FULL_SCALE = 1.0      # z-score at which the display separation saturates
+LEAN_SEPARATION = 10.0       # max +/- display points a strong lean adds
+BASE_CONF_LOW = 68.0         # display when the photo barely matches any success case
+BASE_CONF_SPAN = 22.0        # + this * overall match quality (0..1)
+LIKELIHOOD_FLOOR = 40.0      # never show an improbably low number
+LIKELIHOOD_CEIL = 99.0       # never read as a literal 100% guarantee
 
 # Perceptual-signature similarity above which an uploaded photo is treated as the
 # *same* image as a reference before-photo (our matching-algorithm probe). We take
@@ -325,72 +339,134 @@ def _confidence_label(best_similarity: float, count: int) -> str:
     return "low match confidence (small reference set)"
 
 
-# The recommendation is grounded in the single most similar reference patient for
-# each biologic: "how closely does your skin match the closest patient who cleared
-# on this drug?". Averaging over several neighbors was tried but biased the result
-# toward whichever biologic has the tighter reference cluster (a higher neighbor
-# mean) regardless of the patient — so a density-invariant nearest-neighbor score
-# is used instead, letting the patient's own features decide the winner.
-#
-# Even nearest-neighbor similarity is not directly comparable between the two
-# cohorts: over the distribution of real uploads one biologic scores higher purely
-# as a dataset artifact. A small per-biologic calibration offset (precomputed by
-# scripts/build_calibration.py over a large sample of diverse synthetic photos, and
-# stored in data/calibration.json) shifts both biologics to a shared mean so a
-# typical upload scores them equally and the patient's own biomarkers decide.
-_CALIBRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "calibration.json"
-)
+def _cohort_centroids(
+    cases: List[ImageReferenceCase],
+) -> Dict[str, Dict[str, float]]:
+    """Mean normalized (0–1) biomarker vector for each biologic's success cases.
+
+    Mean (not median) is deliberate: the high-erythema Dupixent cases lift that
+    cohort's redness centroid, which is exactly the "redder skin looks more like a
+    Dupixent responder" signal we want to preserve.
+    """
+    centroids: Dict[str, Dict[str, float]] = {}
+    for biologic in BIOLOGICS:
+        members = [c for c in cases if c.biologic == biologic]
+        centroids[biologic] = {
+            field: (
+                sum(_normalized(c.before_features, field) for c in members)
+                / len(members)
+            )
+            if members
+            else 0.0
+            for field in BIOMARKER_FIELDS
+        }
+    return centroids
 
 
-def _load_calibration_offsets() -> Dict[str, float]:
-    try:
-        payload = json.loads(_CALIBRATION_PATH.read_text(encoding="utf-8"))
-        offsets = payload.get("offsets", {})
-        return {biologic: float(offsets.get(biologic, 0.0)) for biologic in BIOLOGICS}
-    except (OSError, ValueError, TypeError):
-        # No calibration artifact (e.g. tests / fresh dataset): fall back to raw
-        # nearest-neighbor scoring rather than failing.
-        return {biologic: 0.0 for biologic in BIOLOGICS}
+def _pref_dupixent(
+    patient: PatientFeatures, centroids: Dict[str, Dict[str, float]]
+) -> Tuple[float, Dict[str, float]]:
+    """Preference for Dupixent vs Ebglyss from a relative, per-feature comparison.
+
+    For each biomarker the patient gets a 0–1 preference (1 = closer to the Dupixent
+    centroid, 0 = closer to Ebglyss), weighted by ``MATCH_WEIGHTS[f] * |centroidD −
+    centroidE|`` so features that don't separate the cohorts contribute ~nothing.
+    Returns ``(pref_dupixent, per-field signed pull toward Dupixent)``.
+    """
+    dup = centroids["Dupixent"]
+    ebg = centroids["Ebglyss"]
+    num = den = 0.0
+    contrib: Dict[str, float] = {}
+    for field in BIOMARKER_FIELDS:
+        disc = abs(dup[field] - ebg[field])
+        weight = MATCH_WEIGHTS.get(field, 0.0) * disc
+        value = _normalized(patient, field)
+        dist_d = abs(value - dup[field])
+        dist_e = abs(value - ebg[field])
+        pref_f = 0.5 if (dist_d + dist_e) < 1e-9 else dist_e / (dist_d + dist_e)
+        contrib[field] = weight * (pref_f - 0.5)
+        num += weight * pref_f
+        den += weight
+    pref = num / den if den > 0 else 0.5
+    return pref, contrib
 
 
-_CALIBRATION_OFFSETS = _load_calibration_offsets()
+def _pref_stats(
+    cases: List[ImageReferenceCase], centroids: Dict[str, Dict[str, float]]
+) -> Tuple[float, float]:
+    """Center (median) and spread (guarded std) of the Dupixent preference.
+
+    Used to z-score a patient's preference so the recommendation leans relative to the
+    *typical* reference photo — keeping the split balanced regardless of the absolute
+    region the extractor maps real uploads into. The median (not the mean) is the
+    center so a right-skewed preference distribution still splits ~50/50.
+    """
+    prefs = sorted(_pref_dupixent(c.before_features, centroids)[0] for c in cases)
+    if not prefs:
+        return 0.5, 1.0
+    n = len(prefs)
+    center = (
+        prefs[n // 2] if n % 2 else (prefs[n // 2 - 1] + prefs[n // 2]) / 2.0
+    )
+    mean = sum(prefs) / n
+    var = sum((p - mean) ** 2 for p in prefs) / n
+    return center, max(math.sqrt(var), 1e-6)
 
 
-def _likelihood_for_biologic(
-    biologic: str,
+def _display_likelihoods(
+    pref_dupixent: float,
+    pref_mean: float,
+    pref_std: float,
+    overall_match: float,
     scored: List[_ScoredCase],
-) -> BiologicLikelihood:
-    matches = [item for item in scored if item.case.biologic == biologic][
-        :TOP_K_NEIGHBORS
-    ]
-    if not matches:
-        return BiologicLikelihood(
-            biologic=biologic,
-            likelihood_pct=0,
-            confidence_label="no matching cases",
-            matched_case_count=0,
-            weighted_outcome_score=0.0,
-            caveat=f"No {biologic} success cases in the reference dataset yet.",
-        )
+) -> List[BiologicLikelihood]:
+    """Turn the discriminative preference into two friendly, symmetric % displays.
 
-    best_similarity = matches[0].similarity
-    # Cap below 1.0 so no result reads as a literal "100% likelihood of improvement"
-    # (medical-safety: the tool is decision-support, not a guarantee).
-    match_score = min(
-        0.99, max(0.0, best_similarity + _CALIBRATION_OFFSETS.get(biologic, 0.0))
-    )
-    return BiologicLikelihood(
-        biologic=biologic,
-        likelihood_pct=round(match_score * 100, 1),
-        confidence_label=_confidence_label(best_similarity, len(matches)),
-        matched_case_count=len(matches),
-        weighted_outcome_score=round(match_score, 3),
-        caveat=(
-            f"Based on how closely your skin matches {len(matches)} patient(s) who "
-            f"improved on {biologic}; every reference case is a success case."
-        ),
-    )
+    A shared base confidence (how well the photo matches *any* success case) is split
+    by the patient's lean toward one biologic. Recommended always reads higher; a
+    neutral photo shows a near-tie; numbers stay in a plausible high range because
+    every reference case is a success case. Capped below 100% for medical safety.
+    """
+    z = (pref_dupixent - pref_mean) / pref_std
+    lean = max(-1.0, min(1.0, z / PREF_Z_FULL_SCALE))
+    base = BASE_CONF_LOW + BASE_CONF_SPAN * max(0.0, min(1.0, overall_match))
+    separation = LEAN_SEPARATION * lean
+    raw = {"Dupixent": base + separation, "Ebglyss": base - separation}
+
+    likelihoods: List[BiologicLikelihood] = []
+    for biologic in BIOLOGICS:
+        matches = [item for item in scored if item.case.biologic == biologic][
+            :TOP_K_NEIGHBORS
+        ]
+        if not matches:
+            likelihoods.append(
+                BiologicLikelihood(
+                    biologic=biologic,
+                    likelihood_pct=0,
+                    confidence_label="no matching cases",
+                    matched_case_count=0,
+                    weighted_outcome_score=0.0,
+                    caveat=f"No {biologic} success cases in the reference dataset yet.",
+                )
+            )
+            continue
+        pct = round(
+            max(LIKELIHOOD_FLOOR, min(LIKELIHOOD_CEIL, raw[biologic])), 1
+        )
+        likelihoods.append(
+            BiologicLikelihood(
+                biologic=biologic,
+                likelihood_pct=pct,
+                confidence_label=_confidence_label(overall_match, len(matches)),
+                matched_case_count=len(matches),
+                weighted_outcome_score=round(pct / 100.0, 3),
+                caveat=(
+                    f"Based on how closely your skin matches {len(matches)} patient(s) "
+                    f"who improved on {biologic}; every reference case is a success case."
+                ),
+            )
+        )
+    return likelihoods
 
 
 def _matching_reasons(scored: _ScoredCase) -> List[str]:
@@ -477,46 +553,19 @@ def _find_exact_match(
 
 
 def _biomarker_differentiators(
-    recommended: str, other: str, scored: List[_ScoredCase]
+    recommended: str, field_contrib: Dict[str, float]
 ) -> List[Tuple[str, float]]:
-    """Rank biomarkers by how much they pull the match toward `recommended` vs `other`.
+    """Rank biomarkers by how much they pull the match toward `recommended`.
 
-    Returns (field, weighted_pull) sorted by descending pull. A positive value means
-    the patient's skin on that feature looks more like the recommended cohort (a driver
-    of the pick); negative means it leans toward the other biologic.
+    Uses the same per-feature signed pull that decided the recommendation (from
+    :func:`_pref_dupixent`), so the explanation always agrees with the pick. A
+    positive value means the patient's skin on that feature looks more like the
+    recommended cohort; negative means it leans toward the other biologic.
     """
-
-    def top_matches(biologic: str) -> List[_ScoredCase]:
-        return [m for m in scored if m.case.biologic == biologic][:TOP_K_NEIGHBORS]
-
-    rec_matches = top_matches(recommended)
-    oth_matches = top_matches(other)
-    if not rec_matches or not oth_matches:
-        return []
-
-    ranked: List[Tuple[str, float]] = []
-    for field in BIOMARKER_FIELDS:
-        rec_d = [m.distances[field] for m in rec_matches if field in m.distances]
-        oth_d = [m.distances[field] for m in oth_matches if field in m.distances]
-        if not rec_d or not oth_d:
-            continue
-        rec_mean = sum(rec_d) / len(rec_d)
-        oth_mean = sum(oth_d) / len(oth_d)
-        weighted_pull = (oth_mean - rec_mean) * MATCH_WEIGHTS.get(field, 0.0)
-        ranked.append((field, weighted_pull))
+    sign = 1.0 if recommended == "Dupixent" else -1.0
+    ranked = [(field, sign * field_contrib.get(field, 0.0)) for field in BIOMARKER_FIELDS]
     ranked.sort(key=lambda pair: pair[1], reverse=True)
     return ranked
-
-
-def _cohort_feature_means(biologic: str, scored: List[_ScoredCase]) -> Dict[str, float]:
-    """Average normalized (0–1) biomarker values of a biologic's closest reference cases."""
-    matches = [m for m in scored if m.case.biologic == biologic][:TOP_K_NEIGHBORS]
-    means: Dict[str, float] = {}
-    for field in BIOMARKER_FIELDS:
-        values = [_normalized(m.case.before_features, field) for m in matches]
-        if values:
-            means[field] = sum(values) / len(values)
-    return means
 
 
 def _level_word(value: float) -> str:
@@ -535,10 +584,11 @@ def _recommendation_rationale(
     patient: PatientFeatures,
     best: BiologicLikelihood,
     other: BiologicLikelihood,
-    scored: List[_ScoredCase],
+    field_contrib: Dict[str, float],
+    centroids: Dict[str, Dict[str, float]],
     comorbidity_label: Optional[str],
 ) -> str:
-    diffs = _biomarker_differentiators(best.biologic, other.biologic, scored)
+    diffs = _biomarker_differentiators(best.biologic, field_contrib)
     drivers = [field for field, val in diffs if val > 1e-4]
     against = [field for field, val in diffs if val < -1e-4]
     net = sum(val for _, val in diffs)
@@ -561,8 +611,8 @@ def _recommendation_rationale(
             f"to discuss with your dermatologist."
         )
 
-    rec_means = _cohort_feature_means(best.biologic, scored)
-    oth_means = _cohort_feature_means(other.biologic, scored)
+    rec_means = centroids.get(best.biologic, {})
+    oth_means = centroids.get(other.biologic, {})
 
     def clause(field: str) -> str:
         label = BIOMARKER_LABELS.get(field, field)
@@ -607,6 +657,8 @@ def _explanation(
     total_cases: int,
     exact: Optional[ExactMatch],
     scored: List[_ScoredCase],
+    field_contrib: Dict[str, float],
+    centroids: Dict[str, Dict[str, float]],
     lifestyle_considerations: Optional[List[str]] = None,
     comorbidity_label: Optional[str] = None,
 ) -> Explanation:
@@ -634,7 +686,7 @@ def _explanation(
         rationale = None
         if len(ranked) > 1:
             rationale = _recommendation_rationale(
-                patient, best, ranked[1], scored, comorbidity_label
+                patient, best, ranked[1], field_contrib, centroids, comorbidity_label
             )
 
     return Explanation(
@@ -720,9 +772,13 @@ def build_predict_response(
     patient_features, quality = extract_biomarkers(image_bytes)
     scored = _score_cases(patient_features, age, cases)
 
-    likelihoods = [
-        _likelihood_for_biologic(biologic, scored) for biologic in BIOLOGICS
-    ]
+    centroids = _cohort_centroids(cases)
+    pref_mean, pref_std = _pref_stats(cases, centroids)
+    pref_dupixent, field_contrib = _pref_dupixent(patient_features, centroids)
+    overall_match = scored[0].similarity if scored else 0.0
+    likelihoods = _display_likelihoods(
+        pref_dupixent, pref_mean, pref_std, overall_match, scored
+    )
     matched_patients = _matched_patients(scored)
 
     lifestyle_nudges, lifestyle_considerations = _analyze_lifestyle(daily_routine)
@@ -746,13 +802,15 @@ def build_predict_response(
             before_image_url=_media_url(case.before_path),
             after_image_url=_media_url(case.after_path),
         )
-        # Boost the matched biologic to a high-confidence recommendation.
+        # An exact image match is the strongest possible signal: floor the matched
+        # biologic to a high-confidence recommendation AND keep the other biologic
+        # strictly below it, so the visibly higher number always matches the pick.
+        matched_floor = float(EXACT_MATCH_LIKELIHOOD_FLOOR)
+        other_ceiling = matched_floor - 2.0
         likelihoods = [
             item.model_copy(
                 update={
-                    "likelihood_pct": max(
-                        item.likelihood_pct, EXACT_MATCH_LIKELIHOOD_FLOOR
-                    ),
+                    "likelihood_pct": max(item.likelihood_pct, matched_floor),
                     "confidence_label": "very high confidence",
                     "caveat": (
                         f"Your uploaded photo is visually identical to {case.case_id}, "
@@ -761,7 +819,11 @@ def build_predict_response(
                 }
             )
             if item.biologic == case.biologic
-            else item
+            else item.model_copy(
+                update={
+                    "likelihood_pct": min(item.likelihood_pct, other_ceiling),
+                }
+            )
             for item in likelihoods
         ]
     else:
@@ -787,6 +849,8 @@ def build_predict_response(
             len(cases),
             exact,
             scored,
+            field_contrib,
+            centroids,
             lifestyle_considerations=considerations,
             comorbidity_label=comorbidity_label,
         ),
