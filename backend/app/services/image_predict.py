@@ -162,6 +162,20 @@ LIFESTYLE_RULES: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...] = (
         "An active, outdoor routine can affect skin barrier and irritation — worth "
         "raising when you discuss day-to-day tolerability with your dermatologist.",
     ),
+    (
+        (
+            "joint pain", "joint aches", "joint ache", "achy joints", "aching joints",
+            "sore joints", "joint issues", "joint problems", "my joints", "arthralgia",
+            "arthritis", "musculoskeletal", "joint stiffness", "joint",
+        ),
+        "Ebglyss",
+        "You told us you want to avoid joint pain, so we did weigh that: joint aches "
+        "(arthralgia) have been reported more often with Dupixent (dupilumab) than with "
+        "Ebglyss (lebrikizumab), so we nudged your estimate toward Ebglyss. If your "
+        "recommendation still lands on Dupixent, it means your skin's biomarker match "
+        "was strong enough to outweigh this concern — not that it was ignored. Either "
+        "way, flag joint-symptom monitoring with your dermatologist before starting.",
+    ),
 )
 
 
