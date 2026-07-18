@@ -10,7 +10,9 @@ image: a larger visible improvement means a stronger response.
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -23,6 +25,12 @@ from app.services.biomarker_extraction import extract_biomarkers
 
 DEFAULT_DATA_ROOT = Path(__file__).resolve().parents[2] / "data"
 DEFAULT_CSV_NAME = "cases.csv"
+
+# Precomputed reference features are cached here so the server never has to
+# re-extract biomarkers from the reference images at runtime. The cache is keyed
+# on a hash of the CSV contents (git does not preserve mtimes across clones).
+DEFAULT_CACHE_NAME = "derived/reference_cache.json"
+_CACHE_VERSION = 1
 
 SIGNATURE_EDGE = 16  # perceptual signature is a 16x16 normalized grayscale grid
 HISTOGRAM_BINS = 8  # per-channel HSV bins for the crop-tolerant color histogram
@@ -133,6 +141,38 @@ class ImageReferenceCase:
     before_histogram: Tuple[float, ...] = ()
 
 
+def _case_to_dict(case: "ImageReferenceCase") -> dict:
+    return {
+        "case_id": case.case_id,
+        "biologic": case.biologic,
+        "age": case.age,
+        "before_path": case.before_path,
+        "after_path": case.after_path,
+        "before_features": case.before_features.model_dump(),
+        "after_features": case.after_features.model_dump(),
+        "improvement_score": case.improvement_score,
+        "outcome_label": case.outcome_label,
+        "before_signature": list(case.before_signature),
+        "before_histogram": list(case.before_histogram),
+    }
+
+
+def _case_from_dict(item: dict) -> "ImageReferenceCase":
+    return ImageReferenceCase(
+        case_id=item["case_id"],
+        biologic=item["biologic"],
+        age=item["age"],
+        before_path=item["before_path"],
+        after_path=item["after_path"],
+        before_features=PatientFeatures(**item["before_features"]),
+        after_features=PatientFeatures(**item["after_features"]),
+        improvement_score=float(item["improvement_score"]),
+        outcome_label=item["outcome_label"],
+        before_signature=tuple(float(v) for v in item["before_signature"]),
+        before_histogram=tuple(float(v) for v in item["before_histogram"]),
+    )
+
+
 def _clip_unit(value: float) -> float:
     return float(min(1.0, max(0.0, value)))
 
@@ -171,6 +211,7 @@ class ImageReferenceRepository:
             else self.data_root / DEFAULT_CSV_NAME
         )
         self._cases: Optional[List[ImageReferenceCase]] = None
+        self.cache_path = self.data_root / DEFAULT_CACHE_NAME
 
     def list_cases(self) -> List[ImageReferenceCase]:
         if self._cases is None:
@@ -200,6 +241,54 @@ class ImageReferenceRepository:
         if not self.csv_path.is_file():
             raise ImageDatasetError(f"Dataset CSV not found: {self.csv_path}")
 
+        csv_bytes = self.csv_path.read_bytes()
+        csv_hash = hashlib.sha256(csv_bytes).hexdigest()
+
+        cached = self._load_from_cache(csv_hash)
+        if cached is not None:
+            return cached
+
+        cases = self._extract_cases()
+        self._write_cache(csv_hash, cases)
+        return cases
+
+    def _load_from_cache(
+        self, csv_hash: str
+    ) -> Optional[List[ImageReferenceCase]]:
+        """Return cases from the precomputed cache when it matches the CSV."""
+        if not self.cache_path.is_file():
+            return None
+        try:
+            payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
+            if (
+                payload.get("version") != _CACHE_VERSION
+                or payload.get("csv_hash") != csv_hash
+            ):
+                return None
+            return [_case_from_dict(item) for item in payload["cases"]]
+        except (ValueError, KeyError, OSError):
+            # Corrupt or incompatible cache: fall back to recomputing.
+            return None
+
+    def _write_cache(
+        self, csv_hash: str, cases: List[ImageReferenceCase]
+    ) -> None:
+        """Persist extracted features so future loads skip image processing."""
+        try:
+            self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "version": _CACHE_VERSION,
+                "csv_hash": csv_hash,
+                "cases": [_case_to_dict(case) for case in cases],
+            }
+            self.cache_path.write_text(
+                json.dumps(payload), encoding="utf-8"
+            )
+        except OSError:
+            # Read-only filesystem or similar: caching is best-effort.
+            pass
+
+    def _extract_cases(self) -> List[ImageReferenceCase]:
         with self.csv_path.open(newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
             fieldnames = reader.fieldnames or []

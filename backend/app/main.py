@@ -42,7 +42,9 @@ def _warm_reference_repository() -> None:
     from app.api.predict import get_repository
 
     try:
-        get_repository()
+        # Force lazy reference-image processing now (list_cases triggers _load)
+        # so the first real prediction is fast instead of ~16s.
+        get_repository().list_cases()
     except Exception:  # pragma: no cover - warmup is best-effort
         pass
 
