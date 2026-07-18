@@ -43,6 +43,34 @@ npm run dev                     # http://127.0.0.1:5173  (proxies /api → :8000
 4. **Explainable results** — the UI shows likelihood, contributing biomarkers, and the
    matched reference cases behind the estimate.
 
+## Deployment & monitoring
+
+The app is deployed as two separately hosted pieces that both **auto-deploy on
+every push to `main`**:
+
+| Piece | Host | Live URL | Dashboard to monitor |
+|-------|------|----------|----------------------|
+| Frontend (React/Vite) | **Vercel** | https://medical-hackathon-livid.vercel.app/ | https://vercel.com/dashboard → project `medical-hackathon` |
+| Backend (FastAPI) | **Render** (free tier) | https://dermamatch-backend.onrender.com | https://dashboard.render.com/ → service `dermamatch-backend` |
+
+**How the two connect:** `frontend/vercel.json` rewrites `/api/*` on the Vercel
+site to the Render backend, so the browser only ever talks to the Vercel URL.
+Backend deploy config lives in `render.yaml` (root dir `backend`, health check at
+`/health`).
+
+**What to watch on each board:**
+- **Vercel → Deployments:** build/deploy status and logs for the frontend. Set the
+  project **Root Directory to `frontend`** so `vercel.json` applies.
+- **Render → Events / Logs:** backend deploy status, request logs, and any
+  restarts. `GET /health` should return `{"ok": true}`.
+
+**Free-tier cold start:** Render's free instance spins down after ~15 min of
+inactivity, so the **first** request after idle takes ~50s while it wakes. The
+frontend "Analyzing your photo…" scanner covers this; subsequent requests are
+fast. (A cached copy of the reference biomarker features in
+`backend/data/derived/reference_cache.json` keeps warm predictions well under a
+second of compute.)
+
 ## Data & privacy
 
 - Reference cases live under `backend/data/` (CSV metadata + `images/`).
