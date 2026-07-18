@@ -246,6 +246,60 @@ def _analyze_comorbidities(
     return nudges, considerations
 
 
+# A biologic the patient reports having already tried without success is a strong,
+# patient-specific signal to prefer the alternative. It is applied as a sizable display
+# penalty (not an absolute veto — a clinician may still weigh a re-trial, dose change,
+# or that the failure was for tolerability rather than efficacy) and is ALWAYS surfaced
+# in the explanation so the patient never feels their history was ignored.
+PRIOR_FAILURE_PENALTY = 20.0
+_BIOLOGIC_MENTIONS: Dict[str, Tuple[str, ...]] = {
+    "Dupixent": ("dupixent", "dupilumab"),
+    "Ebglyss": ("ebglyss", "lebrikizumab"),
+}
+
+
+def _detect_prior_failures(tried_biologics: str, stopped_reason: str) -> List[str]:
+    """Which reference biologic(s) the patient reports having tried without success."""
+    if (tried_biologics or "").strip().lower() != "yes":
+        return []
+    text = (stopped_reason or "").lower()
+    if not text.strip():
+        return []
+    return [
+        biologic
+        for biologic, names in _BIOLOGIC_MENTIONS.items()
+        if any(name in text for name in names)
+    ]
+
+
+def _apply_prior_failures(
+    likelihoods: List[BiologicLikelihood], prior_failures: List[str]
+) -> List[BiologicLikelihood]:
+    """Lower the estimate for any biologic the patient already tried unsuccessfully."""
+    if not prior_failures:
+        return likelihoods
+    adjusted: List[BiologicLikelihood] = []
+    for item in likelihoods:
+        if item.biologic in prior_failures and item.likelihood_pct > 0:
+            new_pct = round(
+                max(LIKELIHOOD_FLOOR, item.likelihood_pct - PRIOR_FAILURE_PENALTY), 1
+            )
+            adjusted.append(
+                item.model_copy(
+                    update={
+                        "likelihood_pct": new_pct,
+                        "caveat": (
+                            f"{item.caveat} You reported already trying {item.biologic} "
+                            f"without success, so its estimate is lowered."
+                        ),
+                    }
+                )
+            )
+        else:
+            adjusted.append(item)
+    return adjusted
+
+
 def _merge_nudges(*nudge_maps: Dict[str, int]) -> Dict[str, int]:
     merged: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
     for nudge_map in nudge_maps:
@@ -672,6 +726,17 @@ def _recommendation_rationale(
     return sentence
 
 
+def _humanize_list(items: List[str]) -> str:
+    """Join names as 'A', 'A and B', or 'A, B, and C'."""
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
+
+
 def _explanation(
     patient: PatientFeatures,
     likelihoods: List[BiologicLikelihood],
@@ -682,10 +747,12 @@ def _explanation(
     centroids: Dict[str, Dict[str, float]],
     lifestyle_considerations: Optional[List[str]] = None,
     comorbidity_label: Optional[str] = None,
+    prior_failures: Optional[List[str]] = None,
 ) -> Explanation:
     ranked = sorted(likelihoods, key=lambda item: item.likelihood_pct, reverse=True)
     best = ranked[0]
     top_biomarkers = _top_biomarkers(patient)
+    prior_failures = prior_failures or []
 
     if exact is not None:
         summary = (
@@ -709,6 +776,30 @@ def _explanation(
             rationale = _recommendation_rationale(
                 patient, best, ranked[1], field_contrib, centroids, comorbidity_label
             )
+
+    if prior_failures:
+        prior_text = _humanize_list(prior_failures)
+        if best.biologic in prior_failures:
+            # We still land on a biologic the patient told us failed — never silently
+            # re-recommend it; explicitly acknowledge their history.
+            ack = (
+                f" We know you told us {best.biologic} did not work for you before, and we "
+                f"did factor that in — but even after lowering its score, your skin's visual "
+                f"biomarkers still resemble {best.biologic} responders more closely than the "
+                f"alternative. This does not override your experience: please discuss with "
+                f"your dermatologist whether a re-trial, a dose or regimen change, or a "
+                f"different treatment path makes sense for you."
+            )
+            summary += ack
+            rationale = (rationale + ack) if rationale else ack.strip()
+        else:
+            # A prior failure pushed us toward the alternative — say so.
+            note = (
+                f" Because you told us {prior_text} did not work for you, we lowered its "
+                f"estimate and focused on {best.biologic} as the better-fitting alternative."
+            )
+            summary += note
+            rationale = (rationale + note) if rationale else note.strip()
 
     return Explanation(
         summary=summary,
@@ -788,6 +879,8 @@ def build_predict_response(
     repository: ImageReferenceRepository,
     daily_routine: str = "",
     atopic_comorbidities: str = "",
+    tried_biologics: str = "",
+    biologics_stopped_reason: str = "",
 ) -> PredictResponse:
     cases = repository.list_cases()
     patient_features, quality = extract_biomarkers(image_bytes)
@@ -811,6 +904,7 @@ def build_predict_response(
     comorbidity_label = _COMORBIDITY_LABELS.get(
         (atopic_comorbidities or "").strip().lower()
     )
+    prior_failures = _detect_prior_failures(tried_biologics, biologics_stopped_reason)
 
     exact: Optional[ExactMatch] = None
     exact_hit = _find_exact_match(image_bytes, cases)
@@ -851,6 +945,9 @@ def build_predict_response(
         # Lifestyle & comorbidity only nudge the recommendation when there is no exact
         # image match (an exact match is a far stronger, image-grounded signal).
         likelihoods = _apply_lifestyle_nudges(likelihoods, nudges)
+        # A reported prior treatment failure is patient-grounded reality — apply it
+        # last so it can override lifestyle/comorbidity leanings toward that drug.
+        likelihoods = _apply_prior_failures(likelihoods, prior_failures)
 
     warnings: List[str] = list(quality.warnings)
     if len(cases) < 10:
@@ -874,6 +971,7 @@ def build_predict_response(
             centroids,
             lifestyle_considerations=considerations,
             comorbidity_label=comorbidity_label,
+            prior_failures=prior_failures,
         ),
         heatmap=Heatmap(
             overlay_url=None,

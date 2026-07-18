@@ -144,10 +144,14 @@ export function IntakeFields({ register, errors, triedBiologics }: IntakeFieldsP
 
         {triedBiologics === 'yes' && (
           <label className="field-span-2">
-            <span className="field-label-row">Why did you stop your previous biologic?</span>
+            <span className="field-label-row">Which biologic did you try, and why did you stop it?</span>
+            <span className="field-help">
+              Name the biologic (e.g. Dupixent or Ebglyss, or another) and what led you to
+              stop — it stopped working, side effects, cost, or access.
+            </span>
             <textarea
               rows={3}
-              placeholder="e.g. It stopped working after a year, or I had side effects like eye irritation."
+              placeholder="e.g. Dupixent for about a year — it helped at first but stopped working, and I had eye irritation."
               aria-invalid={Boolean(errors.biologics_stopped_reason)}
               aria-describedby={errors.biologics_stopped_reason ? 'biologics-stopped-reason-error' : undefined}
               {...register('biologics_stopped_reason')}

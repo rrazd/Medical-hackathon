@@ -62,7 +62,7 @@ const fieldLabels: Record<keyof IntakeFormValues, string> = {
   itch_severity: 'Itch severity',
   atopic_comorbidities: 'Asthma / hay fever',
   tried_biologics: 'Tried biologics before',
-  biologics_stopped_reason: 'Why you stopped biologics',
+  biologics_stopped_reason: 'Previous biologic & why you stopped',
   nonbiologic_treatments: 'Non-biologic treatment history',
   daily_routine: 'Your typical day',
 };

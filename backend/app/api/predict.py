@@ -66,6 +66,8 @@ async def predict(
             repository,
             daily_routine=daily_routine,
             atopic_comorbidities=atopic_comorbidities,
+            tried_biologics=tried_biologics,
+            biologics_stopped_reason=biologics_stopped_reason,
         )
     except InvalidImageError as exc:
         raise HTTPException(
