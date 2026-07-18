@@ -675,7 +675,7 @@ dd {
 
 .form-grid {
   display: grid;
-  gap: var(--sp-5) var(--sp-4);
+  gap: 2.25rem var(--sp-4);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
@@ -1628,8 +1628,8 @@ button.tertiary:focus-visible {
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: 4px;
-  line-height: 1.2;
+  margin-top: 6px;
+  line-height: 1.3;
 }
 
 /* Full-width textarea fields have room below, so keep their errors in-flow
