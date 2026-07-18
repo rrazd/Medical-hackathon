@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from app.schemas.predict import PredictResponse
 from app.services.image_dataset import ImageDatasetError, ImageReferenceRepository
@@ -60,7 +61,8 @@ async def predict(
 
     try:
         repository = get_repository()
-        return build_predict_response(
+        return await run_in_threadpool(
+            build_predict_response,
             image_bytes,
             age,
             repository,

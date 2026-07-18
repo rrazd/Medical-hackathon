@@ -30,6 +30,23 @@ def health() -> HealthResponse:
 
 app.include_router(predict_router)
 
+
+@app.on_event("startup")
+def _warm_reference_repository() -> None:
+    """Process reference images at boot so the first request isn't slow.
+
+    Building the repository triggers the heavy OpenCV/scikit-image imports and
+    processes all reference cases. Doing this during startup keeps per-request
+    latency low so the platform health check never times out mid-prediction.
+    """
+    from app.api.predict import get_repository
+
+    try:
+        get_repository()
+    except Exception:  # pragma: no cover - warmup is best-effort
+        pass
+
+
 # Serve reference before/after images referenced by matched cases.
 if DEFAULT_DATA_ROOT.is_dir():
     app.mount(
