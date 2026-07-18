@@ -11,6 +11,12 @@ backend/.pytest_cache/
 backend/**/__pycache__/
 frontend/*.tsbuildinfo
 
+# Environment files (may hold API keys) — keep .env.example tracked
+.env
+**/.env
+!.env.example
+!**/.env.example
+
 # Virtualenvs, caches, and compiled artifacts (any level)
 .venv/
 **/.venv/
