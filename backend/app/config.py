@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     # Hard timeout (seconds) for the classifier call; on timeout we fall back to keywords.
     llm_timeout_seconds: float = 8.0
 
+    # Comma-separated browser origins allowed to call the API directly (CORS). The
+    # production frontend proxies /api through Vercel, so it is same-origin and does not
+    # need CORS — but we keep this configurable for direct-call setups.
+    allowed_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "https://medical-hackathon-livid.vercel.app"
+    )
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:

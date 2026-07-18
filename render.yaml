@@ -1,0 +1,21 @@
+# Render Blueprint for the DermaMatch FastAPI backend.
+# Create a new "Blueprint" on https://render.com, point it at this repo, and Render
+# reads this file to provision the service automatically. Free plan; no API key needed
+# (lifestyle/side-effect detection falls back to offline keyword matching).
+services:
+  - type: web
+    name: dermamatch-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # Optional: set OPENAI_API_KEY here (or in the Render dashboard) to enable the
+      # LLM concern classifier. Leave unset to run fully free with keyword matching.
+      # - key: OPENAI_API_KEY
+      #   sync: false

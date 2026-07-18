@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.api.predict import router as predict_router
+from app.config import get_settings
 from app.services.image_dataset import DEFAULT_DATA_ROOT
 
 
@@ -15,7 +16,7 @@ app = FastAPI(title="DermaMatch API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=get_settings().allowed_origins_list,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
