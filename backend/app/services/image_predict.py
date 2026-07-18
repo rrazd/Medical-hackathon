@@ -115,9 +115,12 @@ LIFESTYLE_NUDGE_CAP = 6
 LIFESTYLE_RULES: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...] = (
     (
         (
-            "travel", "traveling", "on the road", "flight", "flying", "frequent flyer",
-            "busy", "hectic", "packed schedule", "no time", "always moving", "on the go",
-            "commute", "commuting", "shift work", "long hours", "overtime",
+            "travel", "traveling", "travelling", "on the road", "road warrior",
+            "flight", "flights", "flying", "fly ", "airport", "airplane", "on planes",
+            "frequent flyer", "hotel", "away from home", "trip", "trips",
+            "busy", "hectic", "packed schedule", "no time", "always moving",
+            "on the go", "on the move", "commute", "commuting", "shift work",
+            "long hours", "overtime", "irregular schedule", "unpredictable schedule",
         ),
         "Ebglyss",
         "Your day sounds busy and on-the-go — Ebglyss's less frequent maintenance dosing "
