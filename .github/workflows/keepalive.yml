@@ -1,0 +1,29 @@
+name: Keep backend warm
+
+# Render's free tier spins the backend down after ~15 minutes of inactivity,
+# which causes a ~50s cold start on the next request. This workflow pings the
+# health endpoint every 10 minutes so the instance stays awake and the public
+# app responds quickly. It's free for public repositories.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 \
+              https://dermamatch-backend.onrender.com/health || echo "000")
+            echo "Attempt $attempt: HTTP $code"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Backend did not return 200 after 3 attempts"
+          exit 1
