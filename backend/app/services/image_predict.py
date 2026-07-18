@@ -215,6 +215,10 @@ def _apply_lifestyle_nudges(
 # a single biologic could address more than their skin. This is a treatment-selection
 # consideration to raise with a clinician — not an efficacy guarantee.
 COMORBIDITY_NUDGE_POINTS = 6
+# Only Dupixent (dupilumab) is FDA-approved for the atopic comorbidities we ask about
+# (asthma, allergic rhinitis / "hay fever"). Ebglyss (lebrikizumab) is approved for
+# atopic dermatitis only. Any comorbidity-approval claim must reference this biologic.
+COMORBIDITY_APPROVED_BIOLOGIC = "Dupixent"
 
 _COMORBIDITY_LABELS: Dict[str, str] = {
     "asthma": "asthma",
@@ -596,11 +600,20 @@ def _recommendation_rationale(
 
     # Comorbidity was the deciding factor: biomarkers alone don't favor the pick.
     if comorbidity_label and net <= 1e-4:
+        if best.biologic == COMORBIDITY_APPROVED_BIOLOGIC:
+            return (
+                f"On skin biomarkers alone, your matches for {best.biologic} and "
+                f"{other.biologic} are nearly even. Because you reported {comorbidity_label} "
+                f"— which {best.biologic} is also approved to treat — it becomes the better "
+                f"overall fit for you."
+            )
         return (
             f"On skin biomarkers alone, your matches for {best.biologic} and "
-            f"{other.biologic} are nearly even. Because you reported {comorbidity_label} "
-            f"— which {best.biologic} is also approved to treat — it becomes the better "
-            f"overall fit for you."
+            f"{other.biologic} are nearly even, with your photo leaning slightly toward "
+            f"{best.biologic}. Because you reported {comorbidity_label}, it's worth "
+            f"discussing {COMORBIDITY_APPROVED_BIOLOGIC} with your dermatologist too — it's "
+            f"also FDA-approved for that condition, so one biologic could address more "
+            f"than your skin."
         )
 
     if not drivers:
@@ -644,10 +657,18 @@ def _recommendation_rationale(
         f"({best.likelihood_pct:g}% vs {other.likelihood_pct:g}%)."
     )
     if comorbidity_label:
-        sentence += (
-            f" Your reported {comorbidity_label} further supports {best.biologic}, which "
-            f"is also approved to treat it."
-        )
+        if best.biologic == COMORBIDITY_APPROVED_BIOLOGIC:
+            sentence += (
+                f" Your reported {comorbidity_label} further supports {best.biologic}, "
+                f"which is also FDA-approved to treat it."
+            )
+        else:
+            sentence += (
+                f" Separately, because you reported {comorbidity_label}, "
+                f"{COMORBIDITY_APPROVED_BIOLOGIC} is also FDA-approved for that condition "
+                f"— worth weighing with your dermatologist, even though your skin leans "
+                f"{best.biologic}."
+            )
     return sentence
 
 
