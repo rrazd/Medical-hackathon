@@ -796,31 +796,78 @@ textarea[aria-invalid="true"] {
   border-color: var(--amber-500);
 }
 
-.lifestyle-considerations {
-  margin-top: var(--sp-4);
-  padding: var(--sp-4);
+.considerations-panel {
+  border-left: 4px solid var(--brand-500);
+}
+
+.considerations-header {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.considerations-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--brand-500);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.considerations-panel h2 {
+  margin: 0 0 var(--sp-1);
+}
+
+.considerations-intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.considerations-list {
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.considerations-list li {
+  position: relative;
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) calc(var(--sp-4) + 14px);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--brand-50);
-}
-
-.lifestyle-considerations h3 {
-  margin: 0 0 var(--sp-2);
-  font-size: 15px;
-  color: var(--brand-700);
-}
-
-.lifestyle-considerations ul {
-  margin: 0;
-  padding-left: 1.15rem;
-  display: grid;
-  gap: var(--sp-2);
-}
-
-.lifestyle-considerations li {
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--ink);
+}
+
+.considerations-list li::before {
+  content: '';
+  position: absolute;
+  left: var(--sp-3);
+  top: calc(var(--sp-3) + 6px);
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--brand-500);
+}
+
+.considerations-footnote {
+  margin: var(--sp-4) 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 input[aria-invalid="true"],

@@ -19,17 +19,6 @@ export function ExplanationPanel({ explanation }: ExplanationPanelProps) {
         overall inflammation, redness intensity, skin texture, and dryness/scaling —
         against our curated database of real before/after cases to derive these results.
       </p>
-
-      {explanation.lifestyle_considerations && explanation.lifestyle_considerations.length > 0 && (
-        <div className="lifestyle-considerations">
-          <h3>Lifestyle &amp; side-effect considerations</h3>
-          <ul>
-            {explanation.lifestyle_considerations.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }
