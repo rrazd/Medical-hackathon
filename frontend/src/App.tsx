@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import { predict, type PredictResponse } from './api/dermaMatchClient';
-import { ConsiderationsPanel } from './components/ConsiderationsPanel';
 import { ExplanationPanel } from './components/ExplanationPanel';
 import { DermaLogo } from './components/DermaLogo';
 import { HeroVisuals } from './components/HeroVisuals';
@@ -27,7 +26,6 @@ function Results({ result }: { result: PredictResponse }) {
         </div>
       )}
       <ResultCards likelihoods={result.likelihoods} exactMatch={result.exact_match} />
-      <ConsiderationsPanel considerations={result.explanation.lifestyle_considerations} />
       <SeverityPanel severity={result.severity} />
       <ExplanationPanel explanation={result.explanation} />
     </section>

@@ -796,34 +796,16 @@ textarea[aria-invalid="true"] {
   border-color: var(--amber-500);
 }
 
-.considerations-panel {
-  border-left: 4px solid var(--brand-500);
+.considerations {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
 }
 
-.considerations-header {
-  display: flex;
-  gap: var(--sp-3);
-  align-items: flex-start;
-}
-
-.considerations-badge {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: var(--brand-500);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1;
-  margin-top: 2px;
-}
-
-.considerations-panel h2 {
+.considerations-subhead {
   margin: 0 0 var(--sp-1);
+  font-size: 16px;
+  color: var(--brand-700);
 }
 
 .considerations-intro {
