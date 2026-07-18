@@ -143,17 +143,6 @@ LIFESTYLE_RULES: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...] = (
     ),
     (
         (
-            "screen", "screens", "computer", "monitor", "coding", "reading",
-            "contact lens", "contact lenses", "contacts", "dry eye", "dry eyes",
-            "eye strain", "gaming",
-        ),
-        None,
-        "You spend meaningful time on screens or wear contacts — discuss conjunctivitis "
-        "(eye irritation) monitoring with your dermatologist, as it is a known side "
-        "effect of both biologics.",
-    ),
-    (
-        (
             "outdoor", "outdoors", "outside", "sun", "sweat", "sweating", "gym",
             "run", "running", "jog", "sport", "sports", "athlete", "active",
             "hiking", "hike", "swim", "swimming", "cycling", "bike",
@@ -162,38 +151,143 @@ LIFESTYLE_RULES: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...] = (
         "An active, outdoor routine can affect skin barrier and irritation — worth "
         "raising when you discuss day-to-day tolerability with your dermatologist.",
     ),
+)
+
+
+# Comparative side-effect / tolerability knowledge base (decision-support only, NOT a
+# diagnosis or a safety guarantee). Each rule maps the concerns a patient might voice in
+# their free-text notes to the biologic that side effect is *more frequently associated
+# with* in the AD literature, so we can nudge the estimate toward the better-tolerated
+# alternative for that specific concern — and always explain the trade-off in plain
+# language. Structure mirrors LIFESTYLE_RULES: the middle value is the biologic to nudge
+# TOWARD (the better-tolerated one for that concern), or None when the effect is reported
+# with both and we cannot differentiate (surface a monitoring note, no directional nudge).
+#
+# Directional differentiators used here:
+#   • Conjunctivitis / ocular surface disease: reported markedly more often with
+#     Dupixent (dupilumab) than Ebglyss (lebrikizumab) -> nudge toward Ebglyss.
+#   • Arthralgia / joint pain: reported more often with dupilumab -> nudge toward Ebglyss.
+#   • Facial / head-and-neck erythema ("dupilumab facial redness"): a recognized
+#     paradoxical dupilumab-associated reaction -> nudge toward Ebglyss.
+# Effects reported with both agents (herpes/cold sores, injection-site reactions,
+# headache, eosinophilia) are surfaced as monitoring notes without a directional nudge.
+SIDE_EFFECT_NUDGE_POINTS = 4
+SIDE_EFFECT_NUDGE_CAP = 8
+SIDE_EFFECT_RULES: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...] = (
+    (
+        (
+            "conjunctivitis", "pink eye", "pinkeye", "eye irritation", "eye irritated",
+            "irritated eyes", "dry eye", "dry eyes", "eye inflammation", "eye redness",
+            "red eyes", "itchy eyes", "eye problems", "eye issues", "blepharitis",
+            "keratitis", "contact lens", "contact lenses", "contacts", "watery eyes",
+        ),
+        "Ebglyss",
+        "You raised eye irritation. Conjunctivitis and other eye-surface irritation are "
+        "reported notably more often with Dupixent (dupilumab) than with Ebglyss "
+        "(lebrikizumab), so we weighted your estimate toward Ebglyss for this concern. "
+        "If your recommendation still lands on Dupixent, your skin's biomarker match "
+        "outweighed it — not that it was ignored; ask your dermatologist about eye "
+        "monitoring and lubricating drops.",
+    ),
     (
         (
             "joint pain", "joint aches", "joint ache", "achy joints", "aching joints",
             "sore joints", "joint issues", "joint problems", "my joints", "arthralgia",
-            "arthritis", "musculoskeletal", "joint stiffness", "joint",
+            "arthritis", "musculoskeletal", "joint stiffness", "joints",
         ),
         "Ebglyss",
-        "You told us you want to avoid joint pain, so we did weigh that: joint aches "
-        "(arthralgia) have been reported more often with Dupixent (dupilumab) than with "
-        "Ebglyss (lebrikizumab), so we nudged your estimate toward Ebglyss. If your "
-        "recommendation still lands on Dupixent, it means your skin's biomarker match "
-        "was strong enough to outweigh this concern — not that it was ignored. Either "
-        "way, flag joint-symptom monitoring with your dermatologist before starting.",
+        "You told us you want to avoid joint pain. Joint aches (arthralgia) have been "
+        "reported more often with Dupixent (dupilumab) than with Ebglyss (lebrikizumab), "
+        "so we nudged your estimate toward Ebglyss. If your recommendation still lands "
+        "on Dupixent, your skin's biomarker match was strong enough to outweigh this "
+        "concern — not that it was ignored. Either way, flag joint-symptom monitoring "
+        "with your dermatologist before starting.",
+    ),
+    (
+        (
+            "facial redness", "face redness", "red face", "facial flushing",
+            "face flushing", "facial dermatitis", "head and neck dermatitis",
+            "red cheeks", "flushed face",
+        ),
+        "Ebglyss",
+        "You mentioned facial redness. A paradoxical head-and-neck / facial erythema is a "
+        "recognized reaction associated with Dupixent (dupilumab), so we weighted your "
+        "estimate toward Ebglyss (lebrikizumab) for this concern. If Dupixent still comes "
+        "out ahead, the biomarker match outweighed it — discuss this specific risk with "
+        "your dermatologist.",
+    ),
+    (
+        (
+            "cold sore", "cold sores", "oral herpes", "herpes", "fever blister",
+            "fever blisters", "hsv", "shingles", "zoster",
+        ),
+        None,
+        "You mentioned herpes / cold sores. Herpes-related infections have been reported "
+        "with both Dupixent and Ebglyss, so this does not favor one over the other — but "
+        "tell your dermatologist about your history so they can plan monitoring.",
+    ),
+    (
+        (
+            "injection site", "injection-site", "injection reaction", "site reaction",
+            "redness at the injection", "swelling at the injection", "sore after the shot",
+        ),
+        None,
+        "You mentioned injection-site reactions. Local injection-site reactions are "
+        "reported with both biologics, so this concern does not favor one over the other; "
+        "your dermatologist can share technique tips to reduce them.",
+    ),
+    (
+        (
+            "headache", "headaches", "migraine", "migraines",
+        ),
+        None,
+        "You mentioned headaches. Headache has been reported with both biologics and is "
+        "not a differentiator between them — worth noting for your dermatologist.",
+    ),
+    (
+        (
+            "eosinophil", "eosinophilia", "high eosinophils",
+        ),
+        None,
+        "You mentioned eosinophils. Transient blood-eosinophil increases can occur with "
+        "both biologics; your dermatologist may monitor bloodwork, but it does not favor "
+        "one over the other.",
     ),
 )
 
 
-def _analyze_lifestyle(daily_routine: str) -> Tuple[Dict[str, int], List[str]]:
-    """Map the free-text 'typical day' to biologic nudges + plain considerations."""
+def _match_rule_table(
+    text: str,
+    rules: Tuple[Tuple[Tuple[str, ...], Optional[str], str], ...],
+    points: int,
+    cap: int,
+) -> Tuple[Dict[str, int], List[str]]:
+    """Scan free text against a rule table, accumulating nudges + considerations."""
     nudges: Dict[str, int] = {biologic: 0 for biologic in BIOLOGICS}
     considerations: List[str] = []
-    text = (daily_routine or "").lower().strip()
+    text = (text or "").lower().strip()
     if not text:
         return nudges, considerations
-    for keywords, biologic, note in LIFESTYLE_RULES:
+    for keywords, biologic, note in rules:
         if any(keyword in text for keyword in keywords):
             considerations.append(note)
             if biologic in nudges:
-                nudges[biologic] = min(
-                    LIFESTYLE_NUDGE_CAP, nudges[biologic] + LIFESTYLE_NUDGE_POINTS
-                )
+                nudges[biologic] = min(cap, nudges[biologic] + points)
     return nudges, considerations
+
+
+def _analyze_lifestyle(daily_routine: str) -> Tuple[Dict[str, int], List[str]]:
+    """Map the free-text 'typical day' to dosing-fit nudges + plain considerations."""
+    return _match_rule_table(
+        daily_routine, LIFESTYLE_RULES, LIFESTYLE_NUDGE_POINTS, LIFESTYLE_NUDGE_CAP
+    )
+
+
+def _analyze_side_effects(daily_routine: str) -> Tuple[Dict[str, int], List[str]]:
+    """Map voiced side-effect concerns to the better-tolerated biologic + explanation."""
+    return _match_rule_table(
+        daily_routine, SIDE_EFFECT_RULES, SIDE_EFFECT_NUDGE_POINTS, SIDE_EFFECT_NUDGE_CAP
+    )
 
 
 def _apply_lifestyle_nudges(
@@ -910,11 +1004,16 @@ def build_predict_response(
     matched_patients = _matched_patients(scored)
 
     lifestyle_nudges, lifestyle_considerations = _analyze_lifestyle(daily_routine)
+    side_effect_nudges, side_effect_considerations = _analyze_side_effects(daily_routine)
     comorbidity_nudges, comorbidity_considerations = _analyze_comorbidities(
         atopic_comorbidities
     )
-    considerations = comorbidity_considerations + lifestyle_considerations
-    nudges = _merge_nudges(lifestyle_nudges, comorbidity_nudges)
+    considerations = (
+        comorbidity_considerations
+        + side_effect_considerations
+        + lifestyle_considerations
+    )
+    nudges = _merge_nudges(lifestyle_nudges, side_effect_nudges, comorbidity_nudges)
     comorbidity_label = _COMORBIDITY_LABELS.get(
         (atopic_comorbidities or "").strip().lower()
     )
