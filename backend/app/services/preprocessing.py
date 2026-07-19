@@ -15,7 +15,7 @@ ALLOWED_FORMATS = {"JPEG", "PNG"}
 MIN_SHORT_EDGE = 256
 MIN_LONG_EDGE = 512
 LOW_RES_LONG_EDGE = 768
-MAX_LONG_EDGE = 1024
+MAX_LONG_EDGE = 512  # Reduced from 1024 for faster processing on free-tier hosting
 
 
 class InvalidImageError(ValueError):

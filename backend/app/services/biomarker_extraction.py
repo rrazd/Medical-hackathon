@@ -122,8 +122,8 @@ def compute_texture_score(rgb: np.ndarray, masks: MaskResult) -> float:
     quantized = np.clip((glcm_input.astype(np.float32) / 256.0) * TEXTURE_GLCM_LEVELS, 0, TEXTURE_GLCM_LEVELS - 1).astype(np.uint8)
     glcm = graycomatrix(
         quantized,
-        distances=[1, 2],
-        angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4],
+        distances=[1],  # Use only distance=1 (was [1,2]) for faster computation
+        angles=[0, np.pi / 2],  # Use only 0° and 90° (was 4 angles) for faster computation
         levels=TEXTURE_GLCM_LEVELS,
         symmetric=True,
         normed=True,
